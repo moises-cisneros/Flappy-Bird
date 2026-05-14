@@ -1,5 +1,16 @@
 # Flappy Bird — OpenGL 2D (Java + LWJGL)
 
+![Java](https://img.shields.io/badge/Java-17-orange.svg)
+![LWJGL](https://img.shields.io/badge/LWJGL-3.3.3-black.svg)
+![OpenGL](https://img.shields.io/badge/OpenGL-3.3%20Core-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+
+[⬇️ Descargar archivo .jar (Ejecutable)](bin/FlappyBird.jar?raw=true)
+
+![Flappy Bird Gameplay](assets/demo.gif)
+
+*Gameplay mostrando el modo de 2 jugadores simultáneos y el escalado de dificultad.*
+
 ## Descripción
 
 Juego 2D estilo Flappy Bird construido con Java 17 y LWJGL 3.3.3 sobre OpenGL 3.3 core profile. El proyecto emplea un quad base reutilizable con uniforms de transformación para renderizar todos los elementos en pantalla, prescindiendo del uso de motores gráficos externos o funciones del pipeline fijo. El renderizado y el manejo de transformaciones de los elementos se realiza mediante operaciones matriciales directamente en CPU para ser inyectadas en los shaders.
@@ -29,10 +40,23 @@ Juego 2D estilo Flappy Bird construido con Java 17 y LWJGL 3.3.3 sobre OpenGL 3.
 
 ## Instalación y ejecución
 
+### Opción 1: Cómo jugar rápido
+
+Si descargaste el archivo `.jar` desde el enlace superior:
+
+1. Asegúrate de tener instalado Java 17.
+2. Abre una terminal en la carpeta donde descargaste el archivo y ejecuta:
+
+   ```bash
+   java -jar FlappyBird.jar
+    ```
+
+### Opción 2: Compilar desde el código fuente
+
 ```bash
 # Clonar el repositorio
 git clone https://github.com/moises-cisneros/Flappy-Bird
-cd FlappyBird
+cd Flappy-Bird
 
 # Compilar
 mvn compile
@@ -43,12 +67,13 @@ mvn exec:java
 # Opcional: compilar y empaquetar en un JAR independiente
 mvn package
 java -jar target/FlappyBird-1.0-SNAPSHOT.jar
+
 ```
 
 ## Controles
 
 | Jugador / Contexto | Acción | Tecla |
-|--------------------|--------|-------|
+| --- | --- | --- |
 | **Jugador 1** | Saltar | `SPACE` |
 | **Jugador 2** | Saltar | `W` / `↑` |
 | **Menú Principal** | Navegar Arriba | `↑` |
@@ -80,6 +105,7 @@ src/main/java/org/moises/
 │   └── MenuAction.java         ← Enumerador para selección en menús (SELECT_1P, SELECT_2P, NONE)
 └── audio/
     └── SoundManager.java       ← Sistema de Object Pooling y playback de pistas WAV
+
 ```
 
 ## Créditos y Recursos
