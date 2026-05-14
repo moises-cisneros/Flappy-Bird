@@ -12,6 +12,9 @@ public class App {
      * @param args argumentos de línea de comandos (no usados).
      */
     public static void main(String[] args) {
-        new Game().run();
+        System.out.println("Flappy Bird - Demo");
+
+        Game game = new Game();
+        game.run();
     }
 }

@@ -125,7 +125,10 @@ public class Bird {
 
     /**
      * Renderiza el pájaro compuesto (cuerpo, pico, ojo, cola, ala animada).
-     * La inclinación se calcula a partir de {@code velY}.
+     * <p>
+     * Todas las partes se definen en <b>espacio local</b> (relativas al centro
+     * del pájaro). La rotación 2D se aplica en CPU antes de trasladar al mundo,
+     * garantizando que el tilt inclina TODAS las partes de forma cohesiva (M9-T2).
      *
      * @param renderer instancia del {@link Renderer} activo.
      * @param time     tiempo de aplicación en segundos (para animación del ala).
@@ -133,46 +136,40 @@ public class Bird {
     public void render(Renderer renderer, float time) {
         if (!alive) return;
 
-        float tilt = clamp(velY / Math.abs(IMPULSO_SALTO), -1.0f, 1.0f) * MAX_TILT;
-        float wingOffset = (float) Math.sin(time * FLAP_SPEED) * WING_AMP;
+        float theta = clamp(velY / Math.abs(IMPULSO_SALTO), -1.0f, 1.0f) * MAX_TILT;
+        float wing  = (float) Math.sin(time * FLAP_SPEED) * WING_AMP;
 
         float r = color[0], g = color[1], b = color[2];
 
-        // Cuerpo principal.
-        renderer.drawRect(x, y, ANCHO, ALTO, tilt, r, g, b);
+        renderer.glPushMatrix();
+        renderer.glTranslatef(x, y);
+        renderer.glRotatef(theta);
 
-        // Cola (triángulo apuntando a la izquierda).
+        // Cuerpo — dibujado en el centro local
+        renderer.drawRect(0f, 0f, ANCHO, ALTO, 0f, r, g, b);
+
+        // Cola — triángulo apuntando a la izquierda
         renderer.drawTriangle(
-                x - 0.06f, y,           // punta izquierda
-                x - 0.02f, y + 0.03f,   // arriba
-                x - 0.02f, y - 0.03f,   // abajo
-                tilt,
-                r * 0.75f, g * 0.75f, b * 0.75f
-        );
+                -0.06f,  0f,   -0.02f,  0.03f,   -0.02f, -0.03f, 0f,
+                r * 0.75f, g * 0.75f, b * 0.75f);
 
-        // Pico (triángulo apuntando a la derecha).
+        // Pico — triángulo apuntando a la derecha
         renderer.drawTriangle(
-                x + 0.07f, y,           // punta derecha
-                x + 0.03f, y + 0.02f,   // arriba
-                x + 0.03f, y - 0.02f,   // abajo
-                tilt,
-                0.98f, 0.65f, 0.10f
-        );
+                 0.07f,  0f,    0.03f,  0.02f,    0.03f, -0.02f, 0f,
+                 0.98f, 0.65f, 0.10f);
 
-        // Ala (rect animado con sin).
-        renderer.drawRect(x - 0.01f, y + wingOffset, 0.06f, 0.025f, tilt,
+        // Ala — rect animado
+        renderer.drawRect(-0.01f, wing, 0.06f, 0.025f, 0f,
                 r * 0.80f, g * 0.80f, b * 0.80f);
 
-        // Ojo blanco.
-        renderer.drawCircle(x + 0.025f, y + 0.022f, 0.018f, 16, tilt, 1f, 1f, 1f);
+        // Ojo blanco y pupila
+        renderer.drawCircle(0.025f, 0.022f, 0.018f, 16, 0f, 1f, 1f, 1f);
+        renderer.drawCircle(0.030f, 0.022f, 0.010f, 12, 0f, 0.05f, 0.05f, 0.05f);
 
-        // Pupila negra.
-        renderer.drawCircle(x + 0.030f, y + 0.022f, 0.010f, 12, tilt, 0.05f, 0.05f, 0.05f);
+        renderer.glPopMatrix();
     }
 
-    // -------------------------------------------------------------------------
-    // Auxiliar
-    // -------------------------------------------------------------------------
+
 
     /** Clampa un valor entre {@code min} y {@code max}. */
     private static float clamp(float val, float min, float max) {

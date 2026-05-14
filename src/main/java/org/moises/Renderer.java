@@ -21,11 +21,8 @@ public class Renderer {
     // Uniforms del shader
     // -------------------------------------------------------------------------
     private final int program;
-    private final int uOffset;
-    private final int uScale;
-    private final int uAngle;
+    private final int uModel;
     private final int uColor;
-    private final int uPivot;
 
     // -------------------------------------------------------------------------
     // VAO / VBO
@@ -49,11 +46,8 @@ public class Renderer {
      */
     public Renderer(int program) {
         this.program = program;
-        this.uOffset = GL20.glGetUniformLocation(program, "uOffset");
-        this.uScale  = GL20.glGetUniformLocation(program, "uScale");
-        this.uAngle  = GL20.glGetUniformLocation(program, "uAngle");
+        this.uModel  = GL20.glGetUniformLocation(program, "uModel");
         this.uColor  = GL20.glGetUniformLocation(program, "uColor");
-        this.uPivot  = GL20.glGetUniformLocation(program, "uPivot");
 
         // Crear quad base.
         int[] quadIds = createStaticVao(new float[]{
@@ -79,33 +73,64 @@ public class Renderer {
     }
 
     // -------------------------------------------------------------------------
+    // Matriz de Transformación
+    // -------------------------------------------------------------------------
+
+    private float[] cmat = {1,0,0, 0,1,0, 0,0,1};
+    private float[] stack = new float[64 * 9];
+    private int stackPtr = 0;
+
+    public void glPushMatrix() {
+        System.arraycopy(cmat, 0, stack, stackPtr, 9);
+        stackPtr += 9;
+    }
+
+    public void glPopMatrix() {
+        stackPtr -= 9;
+        System.arraycopy(stack, stackPtr, cmat, 0, 9);
+    }
+
+    public void glTranslatef(float tx, float ty) {
+        cmat[6] += cmat[0]*tx + cmat[3]*ty;
+        cmat[7] += cmat[1]*tx + cmat[4]*ty;
+    }
+
+    public void glRotatef(float angle) {
+        float c = (float)Math.cos(angle);
+        float s = (float)Math.sin(angle);
+        float m00 = cmat[0], m10 = cmat[1], m01 = cmat[3], m11 = cmat[4];
+        cmat[0] = m00*c + m01*s;
+        cmat[1] = m10*c + m11*s;
+        cmat[3] = m00*-s + m01*c;
+        cmat[4] = m10*-s + m11*c;
+    }
+
+    public void glScalef(float sx, float sy) {
+        cmat[0] *= sx; cmat[1] *= sx;
+        cmat[3] *= sy; cmat[4] *= sy;
+    }
+
+    // -------------------------------------------------------------------------
     // Métodos de dibujo públicos
     // -------------------------------------------------------------------------
 
-    /**
-     * Dibuja un rectángulo centrado en (cx, cy) con las dimensiones dadas,
-     * rotado {@code angle} radianes alrededor de su propio centro.
-     *
-     * @param cx    centro X en NDC.
-     * @param cy    centro Y en NDC.
-     * @param w     ancho en NDC.
-     * @param h     alto en NDC.
-     * @param angle rotación en radianes.
-     * @param r     rojo [0,1].
-     * @param g     verde [0,1].
-     * @param b     azul [0,1].
-     */
     public void drawRect(float cx, float cy, float w, float h,
                          float angle, float r, float g, float b) {
+        glPushMatrix();
+        glTranslatef(cx, cy);
+        glRotatef(angle);
+        glScalef(w, h);
+
         GL20.glUseProgram(program);
-        GL20.glUniform2f(uOffset, cx, cy);
-        GL20.glUniform2f(uScale,   w,  h);
-        GL20.glUniform1f(uAngle,   angle);
-        GL20.glUniform2f(uPivot, 0f, 0f);
-        GL20.glUniform3f(uColor,   r,  g,  b);
+        FloatBuffer fb = BufferUtils.createFloatBuffer(9);
+        fb.put(cmat).flip();
+        GL20.glUniformMatrix3fv(uModel, false, fb);
+        GL20.glUniform3f(uColor, r, g, b);
         GL30.glBindVertexArray(quadVao);
         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 6);
         GL30.glBindVertexArray(0);
+
+        glPopMatrix();
     }
 
     /**
@@ -141,7 +166,10 @@ public class Renderer {
                 x2, y2, 0f,
                 x3, y3, 0f
         };
-        uploadAndDraw(verts, GL11.GL_TRIANGLES, 3, angle, r, g, b);
+        glPushMatrix();
+        glRotatef(angle);
+        uploadAndDraw(verts, GL11.GL_TRIANGLES, 3, r, g, b);
+        glPopMatrix();
     }
 
     /**
@@ -168,7 +196,25 @@ public class Renderer {
             verts[(i + 1) * 3 + 1] = cy + radius * (float) Math.sin(theta);
             verts[(i + 1) * 3 + 2] = 0f;
         }
-        uploadAndDraw(verts, GL11.GL_TRIANGLE_FAN, count, angle, r, g, b);
+        glPushMatrix();
+        glRotatef(angle);
+        uploadAndDraw(verts, GL11.GL_TRIANGLE_FAN, count, r, g, b);
+        glPopMatrix();
+    }
+
+    // -------------------------------------------------------------------------
+    // Transparencia (alpha)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Establece el valor del uniform {@code uAlpha} del shader activo.
+     * Llamar con 1.0f para dibujos opacos, < 1.0f para overlays translúcidos.
+     *
+     * @param alpha valor de opacidad [0,1].
+     */
+    public void setAlpha(float alpha) {
+        GL20.glUseProgram(program);
+        GL20.glUniform1f(GL20.glGetUniformLocation(program, "uAlpha"), alpha);
     }
 
     // -------------------------------------------------------------------------
@@ -195,7 +241,7 @@ public class Renderer {
      * porque los vértices ya están en coordenadas mundo).
      */
     private void uploadAndDraw(float[] verts, int mode, int count,
-                                float angle, float r, float g, float b) {
+                               float r, float g, float b) {
         FloatBuffer buf = BufferUtils.createFloatBuffer(verts.length);
         buf.put(verts).flip();
 
@@ -204,12 +250,9 @@ public class Renderer {
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
 
         GL20.glUseProgram(program);
-        // Para geometría dinámica el scale es (1,1) y el offset es (0,0);
-        // los vértices ya tienen las coordenadas correctas.
-        GL20.glUniform2f(uOffset, 0f, 0f);
-        GL20.glUniform2f(uScale,  1f, 1f);
-        GL20.glUniform1f(uAngle,  angle);
-        GL20.glUniform2f(uPivot, 0f, 0f);
+        FloatBuffer fb = BufferUtils.createFloatBuffer(9);
+        fb.put(cmat).flip();
+        GL20.glUniformMatrix3fv(uModel, false, fb);
         GL20.glUniform3f(uColor,   r,  g,  b);
 
         GL30.glBindVertexArray(dynVao);

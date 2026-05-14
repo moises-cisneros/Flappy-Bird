@@ -48,6 +48,11 @@ public class Game {
     private static final int   PTS_PER_LEVEL   = 5;
 
     // =========================================================================
+    // Constantes de viewport (M8)
+    // =========================================================================
+    private static final float TARGET_ASPECT = (float) WIN_W / WIN_H;
+
+    // =========================================================================
     // Recursos OpenGL
     // =========================================================================
     private long         window;
@@ -55,6 +60,19 @@ public class Game {
     private Renderer     renderer;
     private TextRenderer textRenderer;
     private InputManager input;
+    private MainMenu     mainMenu;
+    private GameOverMenu gameOverMenu;
+
+    // =========================================================================
+    // Viewport actual (para conversión mouse → NDC)
+    // =========================================================================
+    private int vpX, vpY, vpW, vpH;
+
+    // =========================================================================
+    // Estado de ratón
+    // =========================================================================
+    private double  cursorX, cursorY;
+    private boolean mouseClicked;
 
     // =========================================================================
     // Estado de partida
@@ -62,6 +80,7 @@ public class Game {
     private Bird         player1;
     private Bird         player2;
     private GameState    state;
+    private boolean      twoPlayerMode = true;
     private final List<Pipe> pipes  = new ArrayList<>();
     private final Random      rng   = new Random();
     private float             timerSpawn;
@@ -113,14 +132,71 @@ public class Game {
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
+        // M8: Registrar callback de viewport responsivo (letterbox/pillarbox).
+        GLFW.glfwSetFramebufferSizeCallback(window, (win, w, h) -> adjustViewport(w, h));
+        adjustViewport(WIN_W, WIN_H);
+
         program      = buildShaderProgram();
         renderer     = new Renderer(program);
         textRenderer = new TextRenderer(renderer);
         input        = new InputManager(window);
+        mainMenu     = new MainMenu(renderer, textRenderer);
+        gameOverMenu = new GameOverMenu(renderer, textRenderer);
+
+        // Mouse: rastrear cursor y clics para interacción con menús.
+        GLFW.glfwSetCursorPosCallback(window, (win, x, y) -> { cursorX = x; cursorY = y; });
+        GLFW.glfwSetMouseButtonCallback(window, (win, btn, action, mods) -> {
+            if (btn == GLFW.GLFW_MOUSE_BUTTON_LEFT && action == GLFW.GLFW_PRESS)
+                mouseClicked = true;
+        });
 
         // Pájaros: P1 amarillo a la izquierda, P2 cian a la derecha.
         player1 = new Bird("P1", -0.45f, 0.98f, 0.85f, 0.20f);
         player2 = new Bird("P2", -0.25f, 0.20f, 0.85f, 0.98f);
+    }
+
+    /**
+     * Ajusta el viewport con lógica letterbox/pillarbox para preservar el
+     * aspect ratio 900x700 independientemente del tamaño de la ventana (M8-T1).
+     * Guarda los parámetros del viewport para la conversión de coordenadas de mouse.
+     *
+     * @param fbW ancho del framebuffer en píxeles.
+     * @param fbH alto del framebuffer en píxeles.
+     */
+    private void adjustViewport(int fbW, int fbH) {
+        float windowAspect = (float) fbW / fbH;
+        if (windowAspect >= TARGET_ASPECT) {
+            vpH = fbH;
+            vpW = (int) (fbH * TARGET_ASPECT);
+            vpX = (fbW - vpW) / 2;
+            vpY = 0;
+        } else {
+            vpW = fbW;
+            vpH = (int) (fbW / TARGET_ASPECT);
+            vpX = 0;
+            vpY = (fbH - vpH) / 2;
+        }
+        GL11.glViewport(vpX, vpY, vpW, vpH);
+    }
+
+    /**
+     * Convierte coordenadas de pantalla (píxeles GLFW) a NDC [-1, +1].
+     * Tiene en cuenta el viewport letterboxed actual.
+     *
+     * @param sx píxel X del cursor.
+     * @param sy píxel Y del cursor (origen arriba-izquierda en GLFW).
+     * @return {@code float[]{ndcX, ndcY}}.
+     */
+    private float[] screenToNdc(double sx, double sy) {
+        float ndcX =  2.0f * (float)(sx - vpX) / vpW - 1.0f;
+        float ndcY = -2.0f * (float)(sy - vpY) / vpH + 1.0f;  // GLFW Y invertido
+        return new float[]{ndcX, ndcY};
+    }
+
+    /** Devuelve {@code true} si el punto NDC (nx, ny) está dentro del rect centrado. */
+    private static boolean hitTest(float nx, float ny,
+                                   float cx, float cy, float w, float h) {
+        return Math.abs(nx - cx) <= w * 0.5f && Math.abs(ny - cy) <= h * 0.5f;
     }
 
     // =========================================================================
@@ -137,16 +213,10 @@ public class Game {
         String vert = """
                 #version 330 core
                 layout (location = 0) in vec3 aPos;
-                uniform vec2 uOffset;
-                uniform vec2 uScale;
-                uniform float uAngle;
-                uniform vec2 uPivot;
+                uniform mat3 uModel;
                 void main() {
-                    vec2 p = aPos.xy * uScale;
-                    float c = cos(uAngle);
-                    float s = sin(uAngle);
-                    vec2 rotated = vec2(c*p.x - s*p.y, s*p.x + c*p.y);
-                    gl_Position = vec4(rotated + uOffset + uPivot, aPos.z, 1.0);
+                    vec3 pos = uModel * vec3(aPos.xy, 1.0);
+                    gl_Position = vec4(pos.xy, aPos.z, 1.0);
                 }
                 """;
 
@@ -194,9 +264,24 @@ public class Game {
     // =========================================================================
 
     /**
-     * Reinicia el estado completo de la partida y pasa a WAITING.
+     * Reinicia el estado completo de la partida y pasa a MAIN_MENU (M7-T1).
      */
     private void resetGame() {
+        player1.reset();
+        player2.reset();
+        pipes.clear();
+        timerSpawn = 0f;
+        state      = GameState.MAIN_MENU;
+        updateTitle();
+    }
+
+    /**
+     * Inicia una partida en el modo indicado desde MAIN_MENU.
+     *
+     * @param twoPlayers {@code true} para modo 2 jugadores.
+     */
+    private void startGame(boolean twoPlayers) {
+        this.twoPlayerMode = twoPlayers;
         player1.reset();
         player2.reset();
         pipes.clear();
@@ -250,8 +335,40 @@ public class Game {
     // =========================================================================
 
     private void processInput() {
+        // ESC siempre disponible: desde el juego vuelve al menú; desde menú cierra.
         if (input.isJustPressed(InputManager.KEY_ESC)) {
-            GLFW.glfwSetWindowShouldClose(window, true);
+            if (state == GameState.MAIN_MENU) {
+                GLFW.glfwSetWindowShouldClose(window, true);
+            } else {
+                resetGame(); // vuelve a MAIN_MENU
+            }
+            return;
+        }
+
+        // M7: MAIN_MENU — navegación por teclado (M7-T3) y ratón.
+        if (state == GameState.MAIN_MENU) {
+            MenuAction action = input.getMenuAction();
+            switch (action) {
+                case SELECT_1P -> startGame(false);
+                case SELECT_2P -> startGame(true);
+                case NAV_UP    -> mainMenu.navigateUp();
+                case NAV_DOWN  -> mainMenu.navigateDown();
+                case NONE      -> {
+                    if (input.isJustPressed(InputManager.KEY_ENTER) ||
+                        input.isJustPressed(InputManager.KEY_SPACE)) {
+                        startGame(mainMenu.getSelectedOption() == MainMenu.OPT_2P);
+                    }
+                }
+            }
+            // --- Soporte de ratón en menú principal ---
+            if (mouseClicked) {
+                float[] ndc = screenToNdc(cursorX, cursorY);
+                if (hitTest(ndc[0], ndc[1], 0f, MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                    startGame(false);
+                else if (hitTest(ndc[0], ndc[1], 0f, MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                    startGame(true);
+                mouseClicked = false;
+            }
             return;
         }
 
@@ -261,8 +378,8 @@ public class Game {
                 player1.jump();
                 SoundManager.playJump();
             }
-            if (input.isJustPressed(InputManager.KEY_W) ||
-                input.isJustPressed(InputManager.KEY_UP)) {
+            if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
+                input.isJustPressed(InputManager.KEY_UP))) {
                 state = GameState.PLAYING;
                 player2.jump();
                 SoundManager.playJump();
@@ -270,10 +387,25 @@ public class Game {
             return;
         }
 
+        // M7: GAME_OVER — Retry (R/SPACE) o Menú Principal (M/ESC) (M7-T5).
         if (state == GameState.GAME_OVER) {
-            if (input.isJustPressed(InputManager.KEY_SPACE) ||
-                input.isJustPressed(InputManager.KEY_R)) {
+            if (input.isJustPressed(InputManager.KEY_R) ||
+                input.isJustPressed(InputManager.KEY_SPACE)) {
+                startGame(twoPlayerMode);
+            }
+            if (input.isJustPressed(InputManager.KEY_M)) {
                 resetGame();
+            }
+            // --- Soporte de ratón en menú game over ---
+            if (mouseClicked) {
+                float[] ndc = screenToNdc(cursorX, cursorY);
+                if (hitTest(ndc[0], ndc[1], -0.34f, GameOverMenu.BTN_Y,
+                            GameOverMenu.BTN_W, GameOverMenu.BTN_H))
+                    startGame(twoPlayerMode);           // Retry
+                else if (hitTest(ndc[0], ndc[1], 0.34f, GameOverMenu.BTN_Y,
+                            GameOverMenu.BTN_W, GameOverMenu.BTN_H))
+                    resetGame();                        // Menú Principal
+                mouseClicked = false;
             }
             return;
         }
@@ -283,8 +415,8 @@ public class Game {
             player1.jump();
             SoundManager.playJump();
         }
-        if (input.isJustPressed(InputManager.KEY_W) ||
-            input.isJustPressed(InputManager.KEY_UP)) {
+        if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
+            input.isJustPressed(InputManager.KEY_UP))) {
             player2.jump();
             SoundManager.playJump();
         }
@@ -343,8 +475,11 @@ public class Game {
             updateTitle();
         }
 
-        // Game over cuando ambos pájaros han muerto.
-        if (!player1.alive && !player2.alive) {
+        // Game over cuando ambos pájaros han muerto (o solo P1 en modo 1P).
+        boolean gameOver = twoPlayerMode
+                ? (!player1.alive && !player2.alive)
+                : !player1.alive;
+        if (gameOver) {
             state = GameState.GAME_OVER;
             SoundManager.playGameOver();
             updateTitle();
@@ -385,15 +520,30 @@ public class Game {
         GL20.glUseProgram(program);
         setAlpha(1.0f);
 
-        drawBackground(time);
-        drawPipes();
-
-        // Pájaros compuestos.
-        player1.render(renderer, time);
-        player2.render(renderer, time);
-
-        drawHUD(time);
-        drawOverlay();
+        // M7-T6: dispatch por estado (REQ-07.10).
+        switch (state) {
+            case MAIN_MENU -> {
+                drawBackground(time);
+                mainMenu.render();
+            }
+            case WAITING, PLAYING -> {
+                drawBackground(time);
+                drawPipes();
+                player1.render(renderer, time);
+                if (twoPlayerMode) player2.render(renderer, time);
+                drawHUD(time);
+                if (state == GameState.WAITING) drawWaitingScreen();
+            }
+            case GAME_OVER -> {
+                drawBackground(time);
+                drawPipes();
+                player1.render(renderer, time);
+                if (twoPlayerMode) player2.render(renderer, time);
+                drawHUD(time);
+                gameOverMenu.render(player1.score, player2.score,
+                        player1.color, player2.color, twoPlayerMode);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -507,53 +657,22 @@ public class Game {
     // Pantallas overlay
     // -------------------------------------------------------------------------
 
-    private void drawOverlay() {
-        if (state == GameState.WAITING) drawWaitingScreen();
-        else if (state == GameState.GAME_OVER) drawGameOverScreen();
-    }
-
-    /** Pantalla de inicio con instrucciones de controles. */
+    /** Pantalla de espera con instrucciones de controles. */
     private void drawWaitingScreen() {
         setAlpha(0.55f);
         renderer.drawRect(0f, 0f, 2f, 2f, 0.05f, 0.08f, 0.15f);
         setAlpha(1.0f);
 
-        // "P1: SPACE" (amarillo).
+        // P1: SPACE (amarillo).
         textRenderer.drawNumber(1, -0.55f, 0.22f, 2.5f,
                 player1.color[0], player1.color[1], player1.color[2]);
-        // "P2: W / UP" (cian).
-        textRenderer.drawNumber(2, 0.10f, 0.22f, 2.5f,
-                player2.color[0], player2.color[1], player2.color[2]);
-
-        // Línea decorativa.
-        renderer.drawRect(0f, 0.00f, 1.2f, 0.006f, 0.5f, 0.5f, 0.6f);
-        renderer.drawRect(0f, -0.10f, 1.0f, 0.006f, 0.5f, 0.5f, 0.6f);
-    }
-
-    /** Pantalla de game over con puntuaciones finales y ganador. */
-    private void drawGameOverScreen() {
-        setAlpha(0.60f);
-        renderer.drawRect(0f, 0f, 2f, 2f, 0.10f, 0.03f, 0.08f);
-        setAlpha(1.0f);
-
-        // Mostrar scores finales.
-        textRenderer.drawNumber(player1.score, -0.55f, 0.30f, 2.5f,
-                player1.color[0], player1.color[1], player1.color[2]);
-        textRenderer.drawNumber(player2.score,  0.10f, 0.30f, 2.5f,
-                player2.color[0], player2.color[1], player2.color[2]);
-
-        // Indicador del ganador (barra debajo del marcador mayor).
-        if (player1.score >= player2.score) {
-            renderer.drawRect(-0.35f, 0.18f, 0.40f, 0.010f,
-                    player1.color[0], player1.color[1], player1.color[2]);
-        } else {
-            renderer.drawRect( 0.30f, 0.18f, 0.40f, 0.010f,
+        if (twoPlayerMode) {
+            // P2: W/UP (cian).
+            textRenderer.drawNumber(2, 0.10f, 0.22f, 2.5f,
                     player2.color[0], player2.color[1], player2.color[2]);
         }
-
-        // Líneas decorativas (guía para "SPACE = restart").
-        renderer.drawRect(0f, -0.05f, 1.0f, 0.006f, 0.5f, 0.5f, 0.6f);
-        renderer.drawRect(0f, -0.18f, 0.8f, 0.006f, 0.5f, 0.5f, 0.6f);
+        renderer.drawRect(0f, 0.00f, 1.2f, 0.006f, 0.5f, 0.5f, 0.6f);
+        renderer.drawRect(0f, -0.10f, 1.0f, 0.006f, 0.5f, 0.5f, 0.6f);
     }
 
     // =========================================================================
@@ -563,13 +682,20 @@ public class Game {
     /** Actualiza el título de la ventana con nivel y puntuaciones. */
     private void updateTitle() {
         String title = switch (state) {
-            case WAITING   -> "Flappy Bird 2P | SPACE / W para empezar";
-            case PLAYING   -> String.format(
-                    "Nivel: %d | P1: %d | P2: %d", currentLevel(),
-                    player1.score, player2.score);
-            case GAME_OVER -> String.format(
-                    "GAME OVER | P1: %d | P2: %d | SPACE o R = reiniciar",
-                    player1.score, player2.score);
+            case MAIN_MENU -> "Flappy Bird | 1=Un Jugador  2=Dos Jugadores";
+            case WAITING   -> twoPlayerMode
+                    ? "Flappy Bird 2P | SPACE / W para empezar"
+                    : "Flappy Bird 1P | SPACE para empezar";
+            case PLAYING   -> twoPlayerMode
+                    ? String.format("Nivel: %d | P1: %d | P2: %d",
+                            currentLevel(), player1.score, player2.score)
+                    : String.format("Nivel: %d | Score: %d",
+                            currentLevel(), player1.score);
+            case GAME_OVER -> twoPlayerMode
+                    ? String.format("GAME OVER | P1:%d P2:%d | R=Retry M=Menú",
+                            player1.score, player2.score)
+                    : String.format("GAME OVER | Score:%d | R=Retry M=Menú",
+                            player1.score);
         };
         GLFW.glfwSetWindowTitle(window, title);
     }

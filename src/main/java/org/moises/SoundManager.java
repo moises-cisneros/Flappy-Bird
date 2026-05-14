@@ -28,7 +28,8 @@ public class SoundManager {
     // Clips precargados
     // -------------------------------------------------------------------------
 
-    private final Clip clipJump;
+    private static final int JUMP_POOL_SIZE = 4;
+    private final Clip[] clipJumpPool;
     private final Clip clipPoint;
     private final Clip clipGameOver;
 
@@ -37,7 +38,10 @@ public class SoundManager {
     // -------------------------------------------------------------------------
 
     private SoundManager() {
-        clipJump     = loadClip("/sounds/jump.wav");
+        clipJumpPool = new Clip[JUMP_POOL_SIZE];
+        for (int i = 0; i < JUMP_POOL_SIZE; i++) {
+            clipJumpPool[i] = loadClip("/sounds/jump.wav");
+        }
         clipPoint    = loadClip("/sounds/point.wav");
         clipGameOver = loadClip("/sounds/gameover.wav");
     }
@@ -50,7 +54,15 @@ public class SoundManager {
      * Reproduce el sonido de salto.
      */
     public static void playJump() {
-        play(INSTANCE.clipJump);
+        if (INSTANCE.clipJumpPool == null) return;
+        for (int i = 0; i < JUMP_POOL_SIZE; i++) {
+            Clip c = INSTANCE.clipJumpPool[i];
+            if (c != null && !c.isRunning()) {
+                c.setFramePosition(0);
+                c.start();
+                break;
+            }
+        }
     }
 
     /**
