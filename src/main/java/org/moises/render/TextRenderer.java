@@ -1,4 +1,4 @@
-package org.moises;
+package org.moises.render;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
@@ -196,6 +196,35 @@ public class TextRenderer {
 
     public float numberWidth(int digits, float scale) {
         return digits * 0.05f * scale;
+    }
+
+    public float measureText(String text, float scale) {
+        float finalScale = scale * 0.55f;
+        FloatBuffer xBuf = BufferUtils.createFloatBuffer(1);
+        FloatBuffer yBuf = BufferUtils.createFloatBuffer(1);
+        STBTTAlignedQuad q = STBTTAlignedQuad.malloc();
+        float currentX = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < 32 || c >= 128) continue;
+            xBuf.put(0, currentX);
+            yBuf.put(0, 0);
+            STBTruetype.stbtt_GetBakedQuad(cdata, BITMAP_W, BITMAP_H, c - 32, xBuf, yBuf, q, true);
+            currentX = xBuf.get(0);
+        }
+        q.free();
+        return (currentX * finalScale) / 450.0f;
+    }
+
+    public void drawTextClamped(String text, float x, float y, float scale, float r, float g, float b, float xMin, float xMax, float scaleMin) {
+        float textWidth = measureText(text, scale);
+        while (textWidth > (xMax - xMin) && scale > scaleMin) {
+            scale -= 0.005f;
+            textWidth = measureText(text, scale);
+        }
+        float drawX = x - textWidth * 0.5f;
+        drawX = Math.max(drawX, xMin);
+        drawText(text, drawX, y, scale, r, g, b);
     }
 
     private void ortho(float left, float right, float bottom, float top, float zNear, float zFar, float[] dest) {

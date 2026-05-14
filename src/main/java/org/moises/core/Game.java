@@ -1,4 +1,14 @@
-package org.moises;
+package org.moises.core;
+
+import org.moises.audio.SoundManager;
+import org.moises.entity.Bird;
+import org.moises.entity.Pipe;
+import org.moises.render.Renderer;
+import org.moises.render.TextRenderer;
+import org.moises.ui.GameOverMenu;
+import org.moises.ui.MainMenu;
+import org.moises.ui.MenuAction;
+
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -399,11 +409,9 @@ public class Game {
             // --- Soporte de ratón en menú game over ---
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
-                if (hitTest(ndc[0], ndc[1], -0.34f, GameOverMenu.BTN_Y,
-                            GameOverMenu.BTN_W, GameOverMenu.BTN_H))
+                if (hitTest(ndc[0], ndc[1], 0f, -0.20f, 1.0f, 0.10f))
                     startGame(twoPlayerMode);           // Retry
-                else if (hitTest(ndc[0], ndc[1], 0.34f, GameOverMenu.BTN_Y,
-                            GameOverMenu.BTN_W, GameOverMenu.BTN_H))
+                else if (hitTest(ndc[0], ndc[1], 0f, -0.32f, 1.0f, 0.10f))
                     resetGame();                        // Menú Principal
                 mouseClicked = false;
             }

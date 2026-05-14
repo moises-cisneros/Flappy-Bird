@@ -1,4 +1,9 @@
-package org.moises;
+package org.moises.ui;
+
+import org.moises.core.GameState;
+import org.moises.render.Renderer;
+import org.moises.render.TextRenderer;
+
 
 /**
  * GameOverMenu: renderiza la pantalla de fin de partida mostrando los scores
@@ -17,18 +22,15 @@ public class GameOverMenu {
     // -------------------------------------------------------------------------
     // Constantes de posición
     // -------------------------------------------------------------------------
-    private static final float PANEL_Y    =  0.10f;
+    private static final float PANEL_Y    =  0.00f;
     private static final float PANEL_W    =  1.40f;
-    private static final float PANEL_H    =  0.90f;
-    private static final float SCORE_Y    =  0.35f;
-    private static final float WINNER_Y   =  0.10f;
+    private static final float PANEL_H    =  0.75f;
 
-    /** Centro Y de los botones Retry/Menú (NDC). Expuesto para hit-testing de ratón. */
-    public static final float BTN_Y       = -0.25f;
-    /** Ancho de cada botón (NDC). */
-    public static final float BTN_W       =  0.44f;
-    /** Alto de cada botón (NDC). */
-    public static final float BTN_H       =  0.10f;
+    private static final float TITLE_Y    =  0.28f;
+    private static final float SCORE_Y    =  0.10f;
+    private static final float WINNER_Y   = -0.04f;
+    private static final float RETRY_Y    = -0.20f;
+    private static final float MENU_Y     = -0.32f;
 
 
     // -------------------------------------------------------------------------
@@ -75,7 +77,7 @@ public class GameOverMenu {
 
         // --- Panel central ---
         renderer.drawRect(0f, PANEL_Y, PANEL_W, PANEL_H, 0.10f, 0.04f, 0.10f);
-        text.drawText("Fin del Juego", -0.28f, PANEL_Y + PANEL_H * 0.35f, 1.2f, 1f, 1f, 1f);
+        text.drawTextClamped("GAME OVER", 0f, TITLE_Y, 1.2f, 1f, 1f, 1f, -0.65f, 0.65f, 0.5f);
 
         // Borde superior del panel (rojo oscuro).
         renderer.drawRect(0f, PANEL_Y + PANEL_H * 0.5f, PANEL_W, 0.018f,
@@ -95,10 +97,6 @@ public class GameOverMenu {
         // --- Botones de opción ---
         drawRetryButton();
         drawMenuButton();
-
-        // --- Separador ---
-        renderer.drawRect(0f, BTN_Y + 0.08f, PANEL_W * 0.8f, 0.004f,
-                0.35f, 0.15f, 0.35f);
     }
 
     // -------------------------------------------------------------------------
@@ -110,76 +108,43 @@ public class GameOverMenu {
      */
     private void drawScores(int scoreP1, int scoreP2,
                              float[] c1, float[] c2) {
-        // P1 (izquierda).
-        text.drawNumber(scoreP1, -0.58f, SCORE_Y, 2.8f, c1[0], c1[1], c1[2]);
-
-        // Separador central.
-        renderer.drawRect(0f, SCORE_Y, 0.008f, 0.14f, 0.50f, 0.20f, 0.50f);
-
-        // P2 (derecha).
-        int digits2 = Math.max(1, String.valueOf(scoreP2).length());
-        float w2 = text.numberWidth(digits2, 2.8f);
-        text.drawNumber(scoreP2, 0.58f - w2, SCORE_Y, 2.8f, c2[0], c2[1], c2[2]);
+        String s = "P1: " + scoreP1 + "  |  P2: " + scoreP2;
+        text.drawTextClamped(s, 0f, SCORE_Y, 0.8f, 1f, 1f, 1f, -0.65f, 0.65f, 0.4f);
     }
 
     /**
      * Dibuja el score único en modo 1 jugador (centrado).
      */
     private void drawSingleScore(int score, float[] color) {
-        int digits = Math.max(1, String.valueOf(score).length());
-        float w = text.numberWidth(digits, 3.0f);
-        text.drawNumber(score, -w * 0.5f, SCORE_Y, 3.0f,
-                color[0], color[1], color[2]);
+        text.drawTextClamped("Score: " + score, 0f, SCORE_Y, 0.8f, color[0], color[1], color[2], -0.65f, 0.65f, 0.4f);
     }
 
     /**
      * Dibuja una barra de "ganador" debajo del score más alto.
      */
     private void drawWinnerIndicator(int s1, int s2, float[] c1, float[] c2) {
-        if (s1 >= s2) {
-            // Ganó P1 o empate → barra amarilla a la izquierda.
-            renderer.drawRect(-0.30f, WINNER_Y, 0.48f, 0.010f, c1[0], c1[1], c1[2]);
+        if (s1 > s2) {
+            text.drawTextClamped("Ganador: P1", 0f, WINNER_Y, 0.7f, c1[0], c1[1], c1[2], -0.65f, 0.65f, 0.4f);
+        } else if (s2 > s1) {
+            text.drawTextClamped("Ganador: P2", 0f, WINNER_Y, 0.7f, c2[0], c2[1], c2[2], -0.65f, 0.65f, 0.4f);
         } else {
-            // Ganó P2 → barra cian a la derecha.
-            renderer.drawRect(0.30f, WINNER_Y, 0.48f, 0.010f, c2[0], c2[1], c2[2]);
+            text.drawTextClamped("Empate", 0f, WINNER_Y, 0.7f, 1f, 1f, 1f, -0.65f, 0.65f, 0.4f);
         }
     }
 
     /**
-     * Dibuja el botón "Retry" (R / SPACE) a la izquierda.
+     * Dibuja el botón "Retry" (R / SPACE).
      */
     private void drawRetryButton() {
-        // Fondo del botón.
-        renderer.drawRect(-0.34f, BTN_Y, BTN_W, BTN_H, 0.15f, 0.30f, 0.15f);
-        renderer.drawRect(-0.34f, BTN_Y + BTN_H * 0.5f,
-                BTN_W, 0.007f, 0.25f, 0.75f, 0.25f);
-        // Indicador visual: cuadrado verde como ícono de "play".
-        renderer.drawTriangle(
-                -0.42f, BTN_Y + 0.025f,
-                -0.42f, BTN_Y - 0.025f,
-                -0.34f, BTN_Y,
-                0f, 0.25f, 0.90f, 0.25f);
-        
-        text.drawText("Iniciar Juego", -0.50f, BTN_Y - 0.018f, 0.6f, 1f, 1f, 1f);
+        renderer.drawRect(0f, RETRY_Y, 1.0f, 0.10f, 0.15f, 0.30f, 0.15f);
+        text.drawTextClamped("[R] Volver a intentar", 0f, RETRY_Y - 0.018f, 0.6f, 1f, 1f, 1f, -0.45f, 0.45f, 0.3f);
     }
 
     /**
-     * Dibuja el botón "Menú" (M / ESC) a la derecha.
+     * Dibuja el botón "Menú" (M / ESC).
      */
     private void drawMenuButton() {
-        // Fondo del botón.
-        renderer.drawRect(0.34f, BTN_Y, BTN_W, BTN_H, 0.25f, 0.12f, 0.28f);
-        renderer.drawRect(0.34f, BTN_Y + BTN_H * 0.5f,
-                BTN_W, 0.007f, 0.70f, 0.25f, 0.75f);
-        // Ícono de "casa" (triángulo sobre un rect).
-        renderer.drawTriangle(
-                0.25f, BTN_Y + 0.035f,
-                0.35f, BTN_Y + 0.010f,
-                0.45f, BTN_Y + 0.035f,
-                0f, 0.85f, 0.40f, 0.90f);
-        renderer.drawRect(0.35f, BTN_Y - 0.015f, 0.07f, 0.04f,
-                0.75f, 0.35f, 0.80f);
-
-        text.drawText("Volver al Menu Principal", 0.15f, BTN_Y - 0.018f, 0.45f, 1f, 1f, 1f);
+        renderer.drawRect(0f, MENU_Y, 1.0f, 0.10f, 0.25f, 0.12f, 0.28f);
+        text.drawTextClamped("[M] Menu principal", 0f, MENU_Y - 0.018f, 0.6f, 1f, 1f, 1f, -0.45f, 0.45f, 0.3f);
     }
 }

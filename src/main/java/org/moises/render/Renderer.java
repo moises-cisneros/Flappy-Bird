@@ -1,4 +1,4 @@
-package org.moises;
+package org.moises.render;
 
 import java.nio.FloatBuffer;
 

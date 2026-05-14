@@ -1,4 +1,4 @@
-package org.moises;
+package org.moises.entity;
 
 /**
  * Pipe (Tubería): modelo de datos de un obstáculo.

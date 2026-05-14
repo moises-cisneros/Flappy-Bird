@@ -1,4 +1,4 @@
-package org.moises;
+package org.moises.core;
 
 /**
  * GameState: enum que representa el estado global del juego.

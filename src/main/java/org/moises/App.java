@@ -1,5 +1,7 @@
 package org.moises;
 
+import org.moises.core.Game;
+
 /**
  * App: entry point de la aplicación.
  * Instancia {@link Game} y delega la ejecución completa en él.
@@ -12,8 +14,6 @@ public class App {
      * @param args argumentos de línea de comandos (no usados).
      */
     public static void main(String[] args) {
-        System.out.println("Flappy Bird - Demo");
-
         Game game = new Game();
         game.run();
     }

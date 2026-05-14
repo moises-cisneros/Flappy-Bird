@@ -1,4 +1,8 @@
-package org.moises;
+package org.moises.ui;
+
+import org.moises.core.Game;
+import org.moises.core.InputManager;
+
 
 /**
  * MenuAction: resultado de la entrada del usuario en el menú principal.

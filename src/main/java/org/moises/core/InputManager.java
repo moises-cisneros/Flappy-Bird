@@ -1,4 +1,7 @@
-package org.moises;
+package org.moises.core;
+
+import org.moises.ui.MenuAction;
+
 
 import org.lwjgl.glfw.GLFW;
 

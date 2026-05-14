@@ -1,4 +1,7 @@
-package org.moises;
+package org.moises.entity;
+
+import org.moises.render.Renderer;
+
 
 /**
  * Bird: datos y lógica de un pájaro jugador.

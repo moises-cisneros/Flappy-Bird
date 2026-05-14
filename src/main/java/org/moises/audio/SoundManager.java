@@ -1,4 +1,4 @@
-package org.moises;
+package org.moises.audio;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;

@@ -1,4 +1,8 @@
-package org.moises;
+package org.moises.ui;
+
+import org.moises.render.Renderer;
+import org.moises.render.TextRenderer;
+
 
 /**
  * MainMenu: renderiza la pantalla de menú principal usando solo primitivas del
@@ -25,16 +29,17 @@ public class MainMenu {
     public static final int   OPT_2P      = 1;
 
     /** Centro Y de la tarjeta de 1 jugador (NDC). Usado para hit-testing de ratón. */
-    public static final float OPT_1P_Y    =  0.12f;
+    public static final float OPT_1P_Y    =  0.02f;
     /** Centro Y de la tarjeta de 2 jugadores (NDC). */
     public static final float OPT_2P_Y    = -0.10f;
     /** Ancho de cada tarjeta de opción (NDC). */
     public static final float CARD_W      =  0.80f;
     /** Alto de cada tarjeta de opción (NDC). */
-    public static final float CARD_H      =  0.13f;
+    public static final float CARD_H      =  0.10f;
 
-    private static final float TITLE_Y    =  0.60f;
-    private static final float BADGE_SIZE =  0.07f;
+    private static final float TITLE_Y       =  0.30f;
+    private static final float SUBTITLE_Y    =  0.16f;
+    private static final float INSTRUCTION_Y = -0.28f;
 
     // -------------------------------------------------------------------------
     // Estado
@@ -109,14 +114,18 @@ public class MainMenu {
         renderer.drawRect(0f, 0f, 2f, 2f, 0.04f, 0.06f, 0.12f);
         renderer.setAlpha(1.0f);
 
-        // --- Título: tres bloques decorativos simulando "FLAPPY BIRD" ---
-        drawTitleDecoration();
+        // --- Título y Subtítulo ---
+        text.drawTextClamped("FLAPPY BIRD", 0f, TITLE_Y, 1.4f, 1f, 0.8f, 0.2f, -0.6f, 0.6f, 0.5f);
+        text.drawTextClamped("Selecciona modo de juego", 0f, SUBTITLE_Y, 0.5f, 0.8f, 0.8f, 0.8f, -0.6f, 0.6f, 0.3f);
 
         // --- Tarjeta opción 1 Jugador ---
-        drawOptionCard(OPT_1P_Y, OPT_1P, "1", 1.0f, 0.85f, 0.20f);
+        drawOptionCard(OPT_1P_Y, OPT_1P, "[1] Un Jugador", 1.0f, 0.85f, 0.20f);
 
         // --- Tarjeta opción 2 Jugadores ---
-        drawOptionCard(OPT_2P_Y, OPT_2P, "2", 0.20f, 0.85f, 1.0f);
+        drawOptionCard(OPT_2P_Y, OPT_2P, "[2] Dos Jugadores", 0.20f, 0.85f, 1.0f);
+
+        // --- Instrucción inferior ---
+        text.drawTextClamped("ENTER / numero para iniciar", 0f, INSTRUCTION_Y, 0.4f, 0.6f, 0.6f, 0.6f, -0.6f, 0.6f, 0.3f);
 
         // --- Línea de ayuda inferior ---
         renderer.drawRect(0f, -0.80f, 1.4f, 0.005f, 0.35f, 0.35f, 0.45f);
@@ -127,40 +136,7 @@ public class MainMenu {
     // Auxiliares de dibujo
     // -------------------------------------------------------------------------
 
-    /**
-     * Dibuja la decoración del título usando rectángulos y dígitos.
-     * Simula "FLAPPY" con bloques de color.
-     */
-    private void drawTitleDecoration() {
-        // Bloque de fondo del título.
-        renderer.drawRect(0f, TITLE_Y, 1.20f, 0.18f, 0.10f, 0.22f, 0.40f);
-
-        // Borde superior del título.
-        renderer.drawRect(0f, TITLE_Y + 0.09f, 1.20f, 0.012f, 0.98f, 0.75f, 0.15f);
-        renderer.drawRect(0f, TITLE_Y - 0.09f, 1.20f, 0.012f, 0.98f, 0.75f, 0.15f);
-
-        // Dígito "1" y "2" como decoración (pájaros representativos).
-        text.drawNumber(1, -0.55f, TITLE_Y - 0.025f, 1.8f, 1.0f, 0.85f, 0.20f);
-        text.drawNumber(2,  0.25f, TITLE_Y - 0.025f, 1.8f, 0.20f, 0.85f, 1.0f);
-
-        // Iniciar Juego texto principal del título.
-        text.drawText("Iniciar Juego", -0.28f, TITLE_Y - 0.02f, 1.0f, 1f, 1f, 1f);
-
-        // Línea central decorativa entre los dos pájaros.
-        renderer.drawRect(0.0f, TITLE_Y - 0.025f, 0.006f, 0.12f, 0.98f, 0.75f, 0.15f);
-    }
-
-    /**
-     * Dibuja una tarjeta de opción de menú.
-     *
-     * @param cy       centro vertical de la tarjeta.
-     * @param optIndex índice de la opción (para determinar si está seleccionada).
-     * @param numLabel texto del número de jugadores ("1" o "2").
-     * @param cr       rojo del color temático.
-     * @param cg       verde del color temático.
-     * @param cb       azul del color temático.
-     */
-    private void drawOptionCard(float cy, int optIndex, String numLabel,
+    private void drawOptionCard(float cy, int optIndex, String label,
                                  float cr, float cg, float cb) {
         boolean selected = (selectedOption == optIndex);
 
@@ -175,17 +151,7 @@ public class MainMenu {
         renderer.drawRect(-CARD_W * 0.5f + borderW * 0.5f, cy,
                 borderW, CARD_H, cr, cg, cb);
 
-        // Badge del número de jugador.
-        renderer.drawRect(-CARD_W * 0.5f + 0.10f, cy,
-                BADGE_SIZE, BADGE_SIZE, cr * 0.8f, cg * 0.8f, cb * 0.8f);
-        int num = optIndex + 1;
-        text.drawNumber(num,
-                -CARD_W * 0.5f + 0.10f - 0.015f, cy - 0.018f,
-                1.0f, cr, cg, cb);
-
-        text.drawText(optIndex == OPT_1P ? "1 Jugador" : "2 Jugadores",
-                -CARD_W * 0.5f + 0.20f, cy - 0.018f,
-                0.9f, 1f, 1f, 1f);
+        text.drawTextClamped(label, 0f, cy - 0.018f, 0.8f, 1f, 1f, 1f, -CARD_W/2 + 0.1f, CARD_W/2 - 0.1f, 0.4f);
 
         // Indicador ">" si está seleccionado.
         if (selected) {
