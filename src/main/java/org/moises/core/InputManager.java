@@ -58,15 +58,19 @@ public class InputManager {
      * Índice interno para ENTER (confirmar selección).
      */
     public static final int KEY_ENTER = 9;
+    /**
+     * Índice interno para tecla 3 (modo 3 jugadores).
+     */
+    public static final int KEY_3 = 10;
 
-    private static final int KEY_COUNT = 10;
+    private static final int KEY_COUNT = 11;
 
     /**
      * Mapa de índice interno → código GLFW.
      */
     private static final int[] GLFW_KEYS = { GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_R,
             GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_M, GLFW.GLFW_KEY_DOWN,
-            GLFW.GLFW_KEY_ENTER };
+            GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_3 };
 
     // -------------------------------------------------------------------------
     // Estado
@@ -149,6 +153,8 @@ public class InputManager {
             return MenuAction.SELECT_1P;
         if (isJustPressed(KEY_2))
             return MenuAction.SELECT_2P;
+        if (isJustPressed(KEY_3))
+            return MenuAction.SELECT_3P;
         if (isJustPressed(KEY_ENTER) || isJustPressed(KEY_SPACE))
             return MenuAction.SELECT_1P; // confirmar opción actual → se resuelve en Game
         if (isJustPressed(KEY_UP))

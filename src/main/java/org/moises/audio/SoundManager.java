@@ -64,7 +64,8 @@ public class SoundManager {
      * Reproduce el sonido de salto.
      */
     public static void playJump() {
-        if (INSTANCE.clipJumpPool == null) return;
+        if (INSTANCE.clipJumpPool == null)
+            return;
         for (int i = 0; i < JUMP_POOL_SIZE; i++) {
             Clip c = INSTANCE.clipJumpPool[i];
             if (c != null && !c.isRunning()) {
@@ -86,7 +87,8 @@ public class SoundManager {
      * Reproduce el sonido de game over.
      */
     public static void playGameOver() {
-        if (INSTANCE.clipGameOverPool == null) return;
+        if (INSTANCE.clipGameOverPool == null)
+            return;
         for (int i = 0; i < GO_POOL_SIZE; i++) {
             Clip c = INSTANCE.clipGameOverPool[i];
             if (c != null && !c.isRunning()) {
@@ -132,7 +134,8 @@ public class SoundManager {
      * @param clip clip a reproducir.
      */
     public static void play(Clip clip) {
-        if (clip == null) return;
+        if (clip == null)
+            return;
         clip.setFramePosition(0);
         clip.start();
     }

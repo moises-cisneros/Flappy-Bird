@@ -29,6 +29,11 @@ public class Pipe {
      */
     public boolean scoredP2;
 
+    /**
+     * Indica si P3 ya recibió punto por esta tubería.
+     */
+    public boolean scoredP3;
+
     public static final float PIPE_W = 0.18f;
     public static final float CAPITAL_EXTRA_WIDTH = 0.04f;
     public static final float GAP_H = 0.46f;
@@ -39,6 +44,7 @@ public class Pipe {
         this.gapCenterY = gap;
         this.scoredP1 = false;
         this.scoredP2 = false;
+        this.scoredP3 = false;
     }
 
     /**

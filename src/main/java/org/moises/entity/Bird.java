@@ -54,6 +54,11 @@ public final class Bird {
      */
     private static final float WING_AMP = 0.025f;
 
+    /**
+     * Puntos necesarios para que la gravedad se invierta.
+     */
+    private static final int PTOS_GRAVEDAD_INVERTIDA = 1;
+
     // -------------------------------------------------------------------------
     // Estado del pájaro
     // -------------------------------------------------------------------------
@@ -127,7 +132,7 @@ public final class Bird {
      */
     public void jump() {
         if (alive) {
-            velY = IMPULSO_SALTO;
+            velY = (score >= 15) ? -IMPULSO_SALTO : IMPULSO_SALTO;
         }
     }
 
@@ -141,9 +146,19 @@ public final class Bird {
         if (!alive)
             return;
 
-        velY += GRAVEDAD * dt;
-        if (velY < VELOCIDAD_MAX_CAIDA)
-            velY = VELOCIDAD_MAX_CAIDA;
+        float currentGravity = (score >= PTOS_GRAVEDAD_INVERTIDA) ? -GRAVEDAD : GRAVEDAD;
+        float currentMaxFallSpeed = (score >= PTOS_GRAVEDAD_INVERTIDA) ? -VELOCIDAD_MAX_CAIDA : VELOCIDAD_MAX_CAIDA;
+
+        velY += currentGravity * dt;
+
+        if (score >= PTOS_GRAVEDAD_INVERTIDA) {
+            if (velY > currentMaxFallSpeed)
+                velY = currentMaxFallSpeed;
+        } else {
+            if (velY < currentMaxFallSpeed)
+                velY = currentMaxFallSpeed;
+        }
+
         y += velY * dt;
 
         // Límites de pantalla (NDC -1 … +1).

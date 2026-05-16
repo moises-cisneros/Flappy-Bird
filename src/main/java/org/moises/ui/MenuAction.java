@@ -3,7 +3,6 @@ package org.moises.ui;
 import org.moises.core.Game;
 import org.moises.core.InputManager;
 
-
 /**
  * MenuAction: resultado de la entrada del usuario en el menú principal.
  * Devuelto por {@link InputManager#getMenuAction()} para desacoplar
@@ -22,6 +21,10 @@ public enum MenuAction {
      * El usuario eligió modo 2 jugadores.
      */
     SELECT_2P,
+    /**
+     * El usuario eligió modo 3 jugadores.
+     */
+    SELECT_3P,
     /**
      * El usuario movió el cursor hacia arriba.
      */

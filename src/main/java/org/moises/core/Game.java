@@ -90,8 +90,9 @@ public class Game {
     // =========================================================================
     private Bird player1;
     private Bird player2;
+    private Bird player3;
     private GameState state = GameState.MAIN_MENU;
-    private boolean twoPlayerMode = true;
+    private int playerCount = 1;
     private final List<Pipe> pipes = new ArrayList<>();
     private final Random rng = new Random();
     private float timerSpawn;
@@ -162,9 +163,11 @@ public class Game {
                 mouseClicked = true;
         });
 
-        // Pájaros: P1 amarillo a la izquierda, P2 cian a la derecha.
+        // Pájaros: P1 amarillo a la izquierda, P2 cian a la derecha, P3 magenta al
+        // centro.
         player1 = new Bird("P1", -0.45f, 0.98f, 0.85f, 0.20f);
         player2 = new Bird("P2", -0.25f, 0.20f, 0.85f, 0.98f);
+        player3 = new Bird("P3", -0.05f, 1.00f, 0.20f, 0.80f);
     }
 
     /**
@@ -284,6 +287,7 @@ public class Game {
     private void resetGame() {
         player1.reset();
         player2.reset();
+        player3.reset();
         pipes.clear();
         timerSpawn = 0f;
         state = GameState.MAIN_MENU;
@@ -293,12 +297,13 @@ public class Game {
     /**
      * Inicia una partida en el modo indicado desde MAIN_MENU.
      *
-     * @param twoPlayers {@code true} para modo 2 jugadores.
+     * @param players cantidad de jugadores.
      */
-    private void startGame(boolean twoPlayers) {
-        this.twoPlayerMode = twoPlayers;
+    private void startGame(int players) {
+        this.playerCount = players;
         player1.reset();
         player2.reset();
+        player3.reset();
         pipes.clear();
         timerSpawn = 0f;
         state = GameState.WAITING;
@@ -313,7 +318,12 @@ public class Game {
      * Nivel actual basado en el mejor puntaje de los dos jugadores.
      */
     private int currentLevel() {
-        return Math.min(MAX_LEVEL, Math.max(player1.score, player2.score) / PTS_PER_LEVEL);
+        int maxScore = player1.score;
+        if (playerCount >= 2)
+            maxScore = Math.max(maxScore, player2.score);
+        if (playerCount == 3)
+            maxScore = Math.max(maxScore, player3.score);
+        return Math.min(MAX_LEVEL, maxScore / PTS_PER_LEVEL);
     }
 
     /**
@@ -370,14 +380,15 @@ public class Game {
         if (state == GameState.MAIN_MENU) {
             MenuAction action = input.getMenuAction();
             switch (action) {
-                case SELECT_1P -> startGame(false);
-                case SELECT_2P -> startGame(true);
+                case SELECT_1P -> startGame(1);
+                case SELECT_2P -> startGame(2);
+                case SELECT_3P -> startGame(3);
                 case NAV_UP -> mainMenu.navigateUp();
                 case NAV_DOWN -> mainMenu.navigateDown();
                 case NONE -> {
                     if (input.isJustPressed(InputManager.KEY_ENTER) ||
                             input.isJustPressed(InputManager.KEY_SPACE)) {
-                        startGame(mainMenu.getSelectedOption() == MainMenu.OPT_2P);
+                        startGame(mainMenu.getSelectedOption() + 1);
                     }
                 }
             }
@@ -385,9 +396,11 @@ public class Game {
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
                 if (hitTest(ndc[0], ndc[1], MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
-                    startGame(false);
+                    startGame(1);
                 else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
-                    startGame(true);
+                    startGame(2);
+                else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_3P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                    startGame(3);
                 mouseClicked = false;
             }
             return;
@@ -399,10 +412,14 @@ public class Game {
                 player1.jump();
                 SoundManager.playJump();
             }
-            if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
-                    input.isJustPressed(InputManager.KEY_UP))) {
+            if (playerCount >= 2 && input.isJustPressed(InputManager.KEY_W)) {
                 state = GameState.PLAYING;
                 player2.jump();
+                SoundManager.playJump();
+            }
+            if (playerCount == 3 && input.isJustPressed(InputManager.KEY_UP)) {
+                state = GameState.PLAYING;
+                player3.jump();
                 SoundManager.playJump();
             }
             return;
@@ -412,7 +429,7 @@ public class Game {
         if (state == GameState.GAME_OVER) {
             if (input.isJustPressed(InputManager.KEY_R) ||
                     input.isJustPressed(InputManager.KEY_SPACE)) {
-                startGame(twoPlayerMode);
+                startGame(playerCount);
             }
             if (input.isJustPressed(InputManager.KEY_M)) {
                 resetGame();
@@ -421,7 +438,7 @@ public class Game {
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
                 if (hitTest(ndc[0], ndc[1], -0.20f, 1.0f, 0.10f))
-                    startGame(twoPlayerMode); // Retry
+                    startGame(playerCount); // Retry
                 else if (hitTest(ndc[0], ndc[1], -0.32f, 1.0f, 0.10f))
                     resetGame(); // Menú Principal
                 mouseClicked = false;
@@ -434,9 +451,12 @@ public class Game {
             player1.jump();
             SoundManager.playJump();
         }
-        if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
-                input.isJustPressed(InputManager.KEY_UP))) {
+        if (playerCount >= 2 && input.isJustPressed(InputManager.KEY_W)) {
             player2.jump();
+            SoundManager.playJump();
+        }
+        if (playerCount == 3 && input.isJustPressed(InputManager.KEY_UP)) {
+            player3.jump();
             SoundManager.playJump();
         }
     }
@@ -451,13 +471,19 @@ public class Game {
 
         boolean p1WasAlive = player1.alive;
         boolean p2WasAlive = player2.alive;
+        boolean p3WasAlive = player3.alive;
 
         player1.update(dt);
-        player2.update(dt);
+        if (playerCount >= 2)
+            player2.update(dt);
+        if (playerCount == 3)
+            player3.update(dt);
 
         if (p1WasAlive && !player1.alive)
             SoundManager.playGameOver();
-        if (twoPlayerMode && p2WasAlive && !player2.alive)
+        if (playerCount >= 2 && p2WasAlive && !player2.alive)
+            SoundManager.playGameOver();
+        if (playerCount == 3 && p3WasAlive && !player3.alive)
             SoundManager.playGameOver();
 
         // Spawn de tuberías.
@@ -480,9 +506,14 @@ public class Game {
                 player1.score++;
                 scoredThisFrame = true;
             }
-            if (player2.alive && !p.scoredP2 && pipeRight < player2.x) {
+            if (playerCount >= 2 && player2.alive && !p.scoredP2 && pipeRight < player2.x) {
                 p.scoredP2 = true;
                 player2.score++;
+                scoredThisFrame = true;
+            }
+            if (playerCount == 3 && player3.alive && !p.scoredP3 && pipeRight < player3.x) {
+                p.scoredP3 = true;
+                player3.score++;
                 scoredThisFrame = true;
             }
 
@@ -491,8 +522,12 @@ public class Game {
                 player1.die();
                 SoundManager.playGameOver();
             }
-            if (player2.alive && p.collides(player2)) {
+            if (playerCount >= 2 && player2.alive && p.collides(player2)) {
                 player2.die();
+                SoundManager.playGameOver();
+            }
+            if (playerCount == 3 && player3.alive && p.collides(player3)) {
+                player3.die();
                 SoundManager.playGameOver();
             }
 
@@ -506,10 +541,15 @@ public class Game {
             updateTitle();
         }
 
-        // Game over cuando ambos pájaros han muerto (o solo P1 en modo 1P).
-        boolean gameOver = twoPlayerMode
-                ? (!player1.alive && !player2.alive)
-                : !player1.alive;
+        // Game over cuando todos los pájaros en juego han muerto.
+        boolean gameOver = false;
+        if (playerCount == 1)
+            gameOver = !player1.alive;
+        else if (playerCount == 2)
+            gameOver = !player1.alive && !player2.alive;
+        else if (playerCount == 3)
+            gameOver = !player1.alive && !player2.alive && !player3.alive;
+
         if (gameOver && state != GameState.GAME_OVER) {
             state = GameState.GAME_OVER;
             updateTitle();
@@ -542,8 +582,10 @@ public class Game {
                 drawBackground();
                 drawPipes();
                 player1.render(renderer, time);
-                if (twoPlayerMode)
+                if (playerCount >= 2)
                     player2.render(renderer, time);
+                if (playerCount == 3)
+                    player3.render(renderer, time);
                 drawHUD();
                 if (state == GameState.WAITING)
                     drawWaitingScreen();
@@ -552,11 +594,13 @@ public class Game {
                 drawBackground();
                 drawPipes();
                 player1.render(renderer, time);
-                if (twoPlayerMode)
+                if (playerCount >= 2)
                     player2.render(renderer, time);
+                if (playerCount == 3)
+                    player3.render(renderer, time);
                 drawHUD();
-                gameOverMenu.render(player1.score, player2.score,
-                        player1.color, player2.color, twoPlayerMode);
+                gameOverMenu.render(player1.score, player2.score, player3.score,
+                        player1.color, player2.color, player3.color, playerCount);
             }
         }
     }
@@ -612,11 +656,21 @@ public class Game {
         textRenderer.drawNumber(player1.score, -0.95f, 0.87f, 1.8f,
                 player1.color[0], player1.color[1], player1.color[2]);
 
-        // Marcador P2 (cian, lado derecho).
-        String s2 = Integer.toString(player2.score);
-        float w2 = textRenderer.numberWidth(s2.length(), 1.8f);
-        textRenderer.drawNumber(player2.score, 0.95f - w2, 0.87f, 1.8f,
-                player2.color[0], player2.color[1], player2.color[2]);
+        if (playerCount >= 2) {
+            // Marcador P2 (cian, lado derecho).
+            String s2 = Integer.toString(player2.score);
+            float w2 = textRenderer.numberWidth(s2.length(), 1.8f);
+            textRenderer.drawNumber(player2.score, 0.95f - w2, 0.87f, 1.8f,
+                    player2.color[0], player2.color[1], player2.color[2]);
+        }
+
+        if (playerCount == 3) {
+            // Marcador P3 (magenta, centro).
+            String s3 = Integer.toString(player3.score);
+            float w3 = textRenderer.numberWidth(s3.length(), 1.8f);
+            textRenderer.drawNumber(player3.score, -w3 * 0.5f, 0.87f, 1.8f,
+                    player3.color[0], player3.color[1], player3.color[2]);
+        }
 
         // Barra de nivel (esquina inferior izquierda).
         drawLevelBar();
@@ -659,10 +713,15 @@ public class Game {
         // P1: SPACE (amarillo).
         textRenderer.drawNumber(1, -0.55f, 0.22f, 2.5f,
                 player1.color[0], player1.color[1], player1.color[2]);
-        if (twoPlayerMode) {
-            // P2: W/UP (cian).
+        if (playerCount >= 2) {
+            // P2: W (cian).
             textRenderer.drawNumber(2, 0.10f, 0.22f, 2.5f,
                     player2.color[0], player2.color[1], player2.color[2]);
+        }
+        if (playerCount == 3) {
+            // P3: UP (magenta).
+            textRenderer.drawNumber(3, 0.75f, 0.22f, 2.5f,
+                    player3.color[0], player3.color[1], player3.color[2]);
         }
         renderer.drawRect(0f, 0.00f, 1.2f, 0.006f, 0.5f, 0.5f, 0.6f);
         renderer.drawRect(0f, -0.10f, 1.0f, 0.006f, 0.5f, 0.5f, 0.6f);
@@ -677,20 +736,28 @@ public class Game {
      */
     private void updateTitle() {
         String title = switch (state) {
-            case MAIN_MENU -> "Flappy Bird | 1=Un Jugador  2=Dos Jugadores";
-            case WAITING -> twoPlayerMode
-                    ? "Flappy Bird 2P | SPACE / W para empezar"
-                    : "Flappy Bird 1P | SPACE para empezar";
-            case PLAYING -> twoPlayerMode
-                    ? String.format("Nivel: %d | P1: %d | P2: %d",
-                            currentLevel(), player1.score, player2.score)
-                    : String.format("Nivel: %d | Score: %d",
-                            currentLevel(), player1.score);
-            case GAME_OVER -> twoPlayerMode
-                    ? String.format("GAME OVER | P1:%d P2:%d | R=Retry M=Menú",
-                            player1.score, player2.score)
-                    : String.format("GAME OVER | Score:%d | R=Retry M=Menú",
-                            player1.score);
+            case MAIN_MENU -> "Flappy Bird | 1=Un Jugador  2=Dos Jugadores  3=Tres Jugadores";
+            case WAITING -> switch (playerCount) {
+                case 1 -> "Flappy Bird 1P | SPACE para empezar";
+                case 2 -> "Flappy Bird 2P | SPACE / W para empezar";
+                default -> "Flappy Bird 3P | SPACE / W / UP para empezar";
+            };
+            case PLAYING -> switch (playerCount) {
+                case 1 -> String.format("Nivel: %d | Score: %d",
+                        currentLevel(), player1.score);
+                case 2 -> String.format("Nivel: %d | P1: %d | P2: %d",
+                        currentLevel(), player1.score, player2.score);
+                default -> String.format("Nivel: %d | P1: %d | P2: %d | P3: %d",
+                        currentLevel(), player1.score, player2.score, player3.score);
+            };
+            case GAME_OVER -> switch (playerCount) {
+                case 1 -> String.format("GAME OVER | Score:%d | R=Retry M=Menú",
+                        player1.score);
+                case 2 -> String.format("GAME OVER | P1:%d P2:%d | R=Retry M=Menú",
+                        player1.score, player2.score);
+                default -> String.format("GAME OVER | P1:%d P2:%d P3:%d | R=Retry M=Menú",
+                        player1.score, player2.score, player3.score);
+            };
         };
         GLFW.glfwSetWindowTitle(window, title);
     }

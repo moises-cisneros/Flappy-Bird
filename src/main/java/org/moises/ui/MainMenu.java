@@ -3,15 +3,14 @@ package org.moises.ui;
 import org.moises.render.Renderer;
 import org.moises.render.TextRenderer;
 
-
 /**
  * MainMenu: renderiza la pantalla de menú principal usando solo primitivas del
  * {@link Renderer}. No requiere mouse ni librerías de UI.
  * <p>
  * Opciones navegables:
  * <ul>
- *   <li>Opción 0 → 1 Jugador (solo SPACE controla el pájaro único)</li>
- *   <li>Opción 1 → 2 Jugadores (SPACE para P1, W/↑ para P2)</li>
+ * <li>Opción 0 → 1 Jugador (solo SPACE controla el pájaro único)</li>
+ * <li>Opción 1 → 2 Jugadores (SPACE para P1, W/↑ para P2)</li>
  * </ul>
  * La opción seleccionada se resalta con un rectángulo de color distinto.
  */
@@ -24,7 +23,7 @@ public class MainMenu {
     /**
      * Número de opciones disponibles.
      */
-    public static final int OPT_COUNT = 2;
+    public static final int OPT_COUNT = 3;
     /**
      * Índice de la opción "1 Jugador".
      */
@@ -33,6 +32,10 @@ public class MainMenu {
      * Índice de la opción "2 Jugadores".
      */
     public static final int OPT_2P = 1;
+    /**
+     * Índice de la opción "3 Jugadores".
+     */
+    public static final int OPT_3P = 2;
 
     /**
      * Centro Y de la tarjeta de 1 jugador (NDC). Usado para hit-testing de ratón.
@@ -42,6 +45,10 @@ public class MainMenu {
      * Centro Y de la tarjeta de 2 jugadores (NDC).
      */
     public static final float OPT_2P_Y = -0.10f;
+    /**
+     * Centro Y de la tarjeta de 3 jugadores (NDC).
+     */
+    public static final float OPT_3P_Y = -0.22f;
     /**
      * Ancho de cada tarjeta de opción (NDC).
      */
@@ -53,7 +60,7 @@ public class MainMenu {
 
     private static final float TITLE_Y = 0.30f;
     private static final float SUBTITLE_Y = 0.16f;
-    private static final float INSTRUCTION_Y = -0.28f;
+    private static final float INSTRUCTION_Y = -0.38f;
 
     // -------------------------------------------------------------------------
     // Estado
@@ -140,8 +147,12 @@ public class MainMenu {
         // --- Tarjeta opción 2 Jugadores ---
         drawOptionCard(OPT_2P_Y, OPT_2P, "[2] Dos Jugadores", 0.20f, 1.0f);
 
+        // --- Tarjeta opción 3 Jugadores ---
+        drawOptionCard(OPT_3P_Y, OPT_3P, "[3] Tres Jugadores", 1.0f, 0.80f);
+
         // --- Instrucción inferior ---
-        text.drawTextClamped("ENTER / numero para iniciar", 0f, INSTRUCTION_Y, 0.4f, 0.6f, 0.6f, 0.6f, -0.6f, 0.6f, 0.3f);
+        text.drawTextClamped("ENTER / numero para iniciar", 0f, INSTRUCTION_Y, 0.4f, 0.6f, 0.6f, 0.6f, -0.6f, 0.6f,
+                0.3f);
 
         // --- Línea de ayuda inferior ---
         renderer.drawRect(0f, -0.80f, 1.4f, 0.005f, 0.35f, 0.35f, 0.45f);
@@ -153,7 +164,7 @@ public class MainMenu {
     // -------------------------------------------------------------------------
 
     private void drawOptionCard(float cy, int optIndex, String label,
-                                float cr, float cb) {
+            float cr, float cb) {
         boolean selected = (selectedOption == optIndex);
 
         // Fondo de la tarjeta.
