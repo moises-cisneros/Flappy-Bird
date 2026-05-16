@@ -8,11 +8,6 @@ import org.moises.core.Game;
  */
 public class App {
 
-    /**
-     * Punto de entrada JVM.
-     *
-     * @param args argumentos de línea de comandos (no usados).
-     */
     public static void main(String[] args) {
         Game game = new Game();
         game.run();

@@ -1,15 +1,5 @@
 package org.moises.core;
 
-import org.moises.audio.SoundManager;
-import org.moises.entity.Bird;
-import org.moises.entity.Pipe;
-import org.moises.render.Renderer;
-import org.moises.render.TextRenderer;
-import org.moises.ui.GameOverMenu;
-import org.moises.ui.MainMenu;
-import org.moises.ui.MenuAction;
-
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -19,11 +9,21 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
+import org.moises.audio.SoundManager;
+import org.moises.entity.Bird;
+import org.moises.entity.Pipe;
+import org.moises.render.BackgroundRenderer;
+import org.moises.render.Renderer;
+import org.moises.render.TextRenderer;
+import org.moises.ui.GameOverMenu;
+import org.moises.ui.MainMenu;
+import org.moises.ui.MenuAction;
 
 /**
  * Game: bucle principal del Flappy Bird para dos jugadores.
  * <p>
- * Delega la lógica de cada pájaro en {@link Bird}, el dibujo en {@link Renderer},
+ * Delega la lógica de cada pájaro en {@link Bird}, el dibujo en
+ * {@link Renderer},
  * las teclas en {@link InputManager} y el audio en {@link SoundManager}.
  * La dificultad crece con el puntaje según la tabla de niveles del plan.
  */
@@ -32,30 +32,30 @@ public class Game {
     // =========================================================================
     // Constantes de ventana
     // =========================================================================
-    private static final int   WIN_W = 900;
-    private static final int   WIN_H = 700;
+    private static final int WIN_W = 900;
+    private static final int WIN_H = 700;
 
     // =========================================================================
     // Constantes de tuberías
     // =========================================================================
-    private static final float PIPE_W          = 0.18f;
-    private static final float PIPE_CAP_EXTRA  = 0.04f;  // capitel más ancho
-    private static final float PIPE_CAP_H      = 0.04f;
-    private static final float GAP_H           = 0.46f;
-    private static final float GAP_MIN_Y       = -0.40f;
-    private static final float GAP_MAX_Y       =  0.40f;
-    private static final float GROUND_TOP      = -0.88f; // límite inferior (suelo)
+    private static final float PIPE_W = Pipe.PIPE_W;
+    private static final float PIPE_CAP_EXTRA = Pipe.CAPITAL_EXTRA_WIDTH; // capitel más ancho
+    private static final float GAP_H = Pipe.GAP_H;
+    private static final float GAP_MIN_Y = -0.40f;
+    private static final float GAP_MAX_Y = 0.40f;
+    private static final float GROUND_TOP = -1.00f; // límite inferior (suelo)
 
     // =========================================================================
     // Constantes de dificultad progresiva
     // =========================================================================
-    private static final float BASE_SPEED      = 0.62f;
-    private static final float SPEED_INC       = 0.145f; // incremento por nivel
-    private static final float MAX_SPEED       = 1.05f;
-    private static final float BASE_SPAWN      = 1.5f;
-    private static final float SPAWN_DEC       = 0.2f;   // reducción por nivel
-    private static final float MIN_SPAWN       = 0.8f;
-    private static final int   PTS_PER_LEVEL   = 5;
+    private static final float BASE_SPEED = 0.62f;
+    private static final float SPEED_INC = 0.145f; // incremento por nivel
+    private static final float MAX_SPEED = 1.05f;
+    private static final float BASE_SPAWN = 1.5f;
+    private static final float SPAWN_DEC = 0.2f; // reducción por nivel
+    private static final float MIN_SPAWN = 0.8f;
+    private static final int PTS_PER_LEVEL = 5;
+    private static final int MAX_LEVEL = 8;
 
     // =========================================================================
     // Constantes de viewport (M8)
@@ -65,12 +65,13 @@ public class Game {
     // =========================================================================
     // Recursos OpenGL
     // =========================================================================
-    private long         window;
-    private int          program;
-    private Renderer     renderer;
+    private long window;
+    private int program;
+    private Renderer renderer;
     private TextRenderer textRenderer;
+    private BackgroundRenderer background;
     private InputManager input;
-    private MainMenu     mainMenu;
+    private MainMenu mainMenu;
     private GameOverMenu gameOverMenu;
 
     // =========================================================================
@@ -81,33 +82,27 @@ public class Game {
     // =========================================================================
     // Estado de ratón
     // =========================================================================
-    private double  cursorX, cursorY;
+    private double cursorX, cursorY;
     private boolean mouseClicked;
 
     // =========================================================================
     // Estado de partida
     // =========================================================================
-    private Bird         player1;
-    private Bird         player2;
-    private GameState    state;
-    private boolean      twoPlayerMode = true;
-    private final List<Pipe> pipes  = new ArrayList<>();
-    private final Random      rng   = new Random();
-    private float             timerSpawn;
-
-    // =========================================================================
-    // Constantes de nube (posiciones fijas)
-    // =========================================================================
-    private static final float[][] CLOUDS = {
-        {-0.70f, 0.72f}, {-0.20f, 0.80f}, {0.30f, 0.68f},
-        {0.65f, 0.78f},  {0.00f, 0.60f}
-    };
+    private Bird player1;
+    private Bird player2;
+    private GameState state = GameState.MAIN_MENU;
+    private boolean twoPlayerMode = true;
+    private final List<Pipe> pipes = new ArrayList<>();
+    private final Random rng = new Random();
+    private float timerSpawn;
 
     // =========================================================================
     // Punto de entrada
     // =========================================================================
 
-    /** Inicializa, ejecuta y limpia el juego. */
+    /**
+     * Inicializa, ejecuta y limpia el juego.
+     */
     public void run() {
         init();
         resetGame();
@@ -120,18 +115,20 @@ public class Game {
     // =========================================================================
 
     private void init() {
-        if (!GLFW.glfwInit()) throw new IllegalStateException("No se pudo iniciar GLFW");
+        if (!GLFW.glfwInit())
+            throw new IllegalStateException("No se pudo iniciar GLFW");
 
         GLFW.glfwDefaultWindowHints();
-        GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE,               GLFW.GLFW_FALSE);
-        GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE,             GLFW.GLFW_TRUE);
+        GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
+        GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, GLFW.GLFW_TRUE);
         GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
         GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 3);
-        GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE,        GLFW.GLFW_OPENGL_CORE_PROFILE);
+        GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 
         window = GLFW.glfwCreateWindow(WIN_W, WIN_H, "Flappy Bird 2P — OpenGL", 0, 0);
-        if (window == 0) throw new RuntimeException("No se pudo crear la ventana");
+        if (window == 0)
+            throw new RuntimeException("No se pudo crear la ventana");
 
         GLFW.glfwMakeContextCurrent(window);
         GLFW.glfwSwapInterval(1);
@@ -141,20 +138,25 @@ public class Game {
         // Habilitar blending para overlays semitransparentes.
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
 
-        // M8: Registrar callback de viewport responsivo (letterbox/pillarbox).
+        // Registrar callback de viewport responsivo (letterbox/pillarbox).
         GLFW.glfwSetFramebufferSizeCallback(window, (win, w, h) -> adjustViewport(w, h));
         adjustViewport(WIN_W, WIN_H);
 
-        program      = buildShaderProgram();
-        renderer     = new Renderer(program);
+        program = buildShaderProgram();
+        renderer = new Renderer(program);
+        background = new BackgroundRenderer();
         textRenderer = new TextRenderer(renderer);
-        input        = new InputManager(window);
-        mainMenu     = new MainMenu(renderer, textRenderer);
+        input = new InputManager(window);
+        mainMenu = new MainMenu(renderer, textRenderer);
         gameOverMenu = new GameOverMenu(renderer, textRenderer);
 
         // Mouse: rastrear cursor y clics para interacción con menús.
-        GLFW.glfwSetCursorPosCallback(window, (win, x, y) -> { cursorX = x; cursorY = y; });
+        GLFW.glfwSetCursorPosCallback(window, (win, x, y) -> {
+            cursorX = x;
+            cursorY = y;
+        });
         GLFW.glfwSetMouseButtonCallback(window, (win, btn, action, mods) -> {
             if (btn == GLFW.GLFW_MOUSE_BUTTON_LEFT && action == GLFW.GLFW_PRESS)
                 mouseClicked = true;
@@ -167,8 +169,9 @@ public class Game {
 
     /**
      * Ajusta el viewport con lógica letterbox/pillarbox para preservar el
-     * aspect ratio 900x700 independientemente del tamaño de la ventana (M8-T1).
-     * Guarda los parámetros del viewport para la conversión de coordenadas de mouse.
+     * aspect ratio 900x700 independientemente del tamaño de la ventana.
+     * Guarda los parámetros del viewport para la conversión de coordenadas de
+     * mouse.
      *
      * @param fbW ancho del framebuffer en píxeles.
      * @param fbH alto del framebuffer en píxeles.
@@ -198,15 +201,17 @@ public class Game {
      * @return {@code float[]{ndcX, ndcY}}.
      */
     private float[] screenToNdc(double sx, double sy) {
-        float ndcX =  2.0f * (float)(sx - vpX) / vpW - 1.0f;
-        float ndcY = -2.0f * (float)(sy - vpY) / vpH + 1.0f;  // GLFW Y invertido
-        return new float[]{ndcX, ndcY};
+        float ndcX = 2.0f * (float) (sx - vpX) / vpW - 1.0f;
+        float ndcY = -2.0f * (float) (sy - vpY) / vpH + 1.0f; // GLFW Y invertido
+        return new float[] { ndcX, ndcY };
     }
 
-    /** Devuelve {@code true} si el punto NDC (nx, ny) está dentro del rect centrado. */
+    /**
+     * Devuelve {@code true} si el punto NDC (nx, ny) está dentro del rect centrado.
+     */
     private static boolean hitTest(float nx, float ny,
-                                   float cx, float cy, float w, float h) {
-        return Math.abs(nx - cx) <= w * 0.5f && Math.abs(ny - cy) <= h * 0.5f;
+            float cy, float w, float h) {
+        return Math.abs(nx - (float) 0.0) <= w * 0.5f && Math.abs(ny - cy) <= h * 0.5f;
     }
 
     // =========================================================================
@@ -240,8 +245,8 @@ public class Game {
                 }
                 """;
 
-        int vs = compileShader(vert, GL20.GL_VERTEX_SHADER,   "Vertex");
-        int fs = compileShader(frag, GL20.GL_FRAGMENT_SHADER,  "Fragment");
+        int vs = compileShader(vert, GL20.GL_VERTEX_SHADER, "Vertex");
+        int fs = compileShader(frag, GL20.GL_FRAGMENT_SHADER, "Fragment");
 
         int prog = GL20.glCreateProgram();
         GL20.glAttachShader(prog, vs);
@@ -274,14 +279,14 @@ public class Game {
     // =========================================================================
 
     /**
-     * Reinicia el estado completo de la partida y pasa a MAIN_MENU (M7-T1).
+     * Reinicia el estado completo de la partida y pasa a MAIN_MENU.
      */
     private void resetGame() {
         player1.reset();
         player2.reset();
         pipes.clear();
         timerSpawn = 0f;
-        state      = GameState.MAIN_MENU;
+        state = GameState.MAIN_MENU;
         updateTitle();
     }
 
@@ -296,7 +301,7 @@ public class Game {
         player2.reset();
         pipes.clear();
         timerSpawn = 0f;
-        state      = GameState.WAITING;
+        state = GameState.WAITING;
         updateTitle();
     }
 
@@ -304,17 +309,23 @@ public class Game {
     // Dificultad progresiva
     // =========================================================================
 
-    /** Nivel actual basado en el mejor puntaje de los dos jugadores. */
+    /**
+     * Nivel actual basado en el mejor puntaje de los dos jugadores.
+     */
     private int currentLevel() {
-        return Math.min(3, Math.max(player1.score, player2.score) / PTS_PER_LEVEL);
+        return Math.min(MAX_LEVEL, Math.max(player1.score, player2.score) / PTS_PER_LEVEL);
     }
 
-    /** Velocidad de desplazamiento de tuberías según nivel. */
+    /**
+     * Velocidad de desplazamiento de tuberías según nivel.
+     */
     private float currentSpeed() {
         return Math.min(MAX_SPEED, BASE_SPEED + SPEED_INC * currentLevel());
     }
 
-    /** Intervalo de spawn de tuberías según nivel. */
+    /**
+     * Intervalo de spawn de tuberías según nivel.
+     */
     private float currentSpawnInterval() {
         return Math.max(MIN_SPAWN, BASE_SPAWN - SPAWN_DEC * currentLevel());
     }
@@ -327,8 +338,8 @@ public class Game {
         float lastTime = (float) GLFW.glfwGetTime();
         while (!GLFW.glfwWindowShouldClose(window)) {
             float now = (float) GLFW.glfwGetTime();
-            float dt  = Math.min(now - lastTime, 0.033f);
-            lastTime  = now;
+            float dt = Math.min(now - lastTime, 0.033f);
+            lastTime = now;
 
             input.poll();
             processInput();
@@ -355,17 +366,17 @@ public class Game {
             return;
         }
 
-        // M7: MAIN_MENU — navegación por teclado (M7-T3) y ratón.
+        // MAIN_MENU — navegación por teclado y ratón.
         if (state == GameState.MAIN_MENU) {
             MenuAction action = input.getMenuAction();
             switch (action) {
                 case SELECT_1P -> startGame(false);
                 case SELECT_2P -> startGame(true);
-                case NAV_UP    -> mainMenu.navigateUp();
-                case NAV_DOWN  -> mainMenu.navigateDown();
-                case NONE      -> {
+                case NAV_UP -> mainMenu.navigateUp();
+                case NAV_DOWN -> mainMenu.navigateDown();
+                case NONE -> {
                     if (input.isJustPressed(InputManager.KEY_ENTER) ||
-                        input.isJustPressed(InputManager.KEY_SPACE)) {
+                            input.isJustPressed(InputManager.KEY_SPACE)) {
                         startGame(mainMenu.getSelectedOption() == MainMenu.OPT_2P);
                     }
                 }
@@ -373,9 +384,9 @@ public class Game {
             // --- Soporte de ratón en menú principal ---
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
-                if (hitTest(ndc[0], ndc[1], 0f, MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                if (hitTest(ndc[0], ndc[1], MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
                     startGame(false);
-                else if (hitTest(ndc[0], ndc[1], 0f, MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
                     startGame(true);
                 mouseClicked = false;
             }
@@ -389,7 +400,7 @@ public class Game {
                 SoundManager.playJump();
             }
             if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
-                input.isJustPressed(InputManager.KEY_UP))) {
+                    input.isJustPressed(InputManager.KEY_UP))) {
                 state = GameState.PLAYING;
                 player2.jump();
                 SoundManager.playJump();
@@ -397,10 +408,10 @@ public class Game {
             return;
         }
 
-        // M7: GAME_OVER — Retry (R/SPACE) o Menú Principal (M/ESC) (M7-T5).
+        // GAME_OVER — Retry (R/SPACE) o Menú Principal (M/ESC).
         if (state == GameState.GAME_OVER) {
             if (input.isJustPressed(InputManager.KEY_R) ||
-                input.isJustPressed(InputManager.KEY_SPACE)) {
+                    input.isJustPressed(InputManager.KEY_SPACE)) {
                 startGame(twoPlayerMode);
             }
             if (input.isJustPressed(InputManager.KEY_M)) {
@@ -409,10 +420,10 @@ public class Game {
             // --- Soporte de ratón en menú game over ---
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
-                if (hitTest(ndc[0], ndc[1], 0f, -0.20f, 1.0f, 0.10f))
-                    startGame(twoPlayerMode);           // Retry
-                else if (hitTest(ndc[0], ndc[1], 0f, -0.32f, 1.0f, 0.10f))
-                    resetGame();                        // Menú Principal
+                if (hitTest(ndc[0], ndc[1], -0.20f, 1.0f, 0.10f))
+                    startGame(twoPlayerMode); // Retry
+                else if (hitTest(ndc[0], ndc[1], -0.32f, 1.0f, 0.10f))
+                    resetGame(); // Menú Principal
                 mouseClicked = false;
             }
             return;
@@ -424,7 +435,7 @@ public class Game {
             SoundManager.playJump();
         }
         if (twoPlayerMode && (input.isJustPressed(InputManager.KEY_W) ||
-            input.isJustPressed(InputManager.KEY_UP))) {
+                input.isJustPressed(InputManager.KEY_UP))) {
             player2.jump();
             SoundManager.playJump();
         }
@@ -435,10 +446,19 @@ public class Game {
     // =========================================================================
 
     private void update(float dt) {
-        if (state != GameState.PLAYING) return;
+        if (state != GameState.PLAYING)
+            return;
+
+        boolean p1WasAlive = player1.alive;
+        boolean p2WasAlive = player2.alive;
 
         player1.update(dt);
         player2.update(dt);
+
+        if (p1WasAlive && !player1.alive)
+            SoundManager.playGameOver();
+        if (twoPlayerMode && p2WasAlive && !player2.alive)
+            SoundManager.playGameOver();
 
         // Spawn de tuberías.
         timerSpawn += dt;
@@ -467,15 +487,18 @@ public class Game {
             }
 
             // Colisiones.
-            if (player1.alive && collides(player1, p)) {
-                player1.alive = false;
+            if (player1.alive && p.collides(player1)) {
+                player1.die();
+                SoundManager.playGameOver();
             }
-            if (player2.alive && collides(player2, p)) {
-                player2.alive = false;
+            if (player2.alive && p.collides(player2)) {
+                player2.die();
+                SoundManager.playGameOver();
             }
 
             // Eliminar tuberías fuera de pantalla.
-            if (p.x + PIPE_W * 0.5f < -1.3f) it.remove();
+            if (p.x + PIPE_W * 0.5f < -1.3f)
+                it.remove();
         }
 
         if (scoredThisFrame) {
@@ -487,9 +510,8 @@ public class Game {
         boolean gameOver = twoPlayerMode
                 ? (!player1.alive && !player2.alive)
                 : !player1.alive;
-        if (gameOver) {
+        if (gameOver && state != GameState.GAME_OVER) {
             state = GameState.GAME_OVER;
-            SoundManager.playGameOver();
             updateTitle();
         }
     }
@@ -497,24 +519,6 @@ public class Game {
     private void spawnPipe() {
         float gap = GAP_MIN_Y + rng.nextFloat() * (GAP_MAX_Y - GAP_MIN_Y);
         pipes.add(new Pipe(1.25f, gap));
-    }
-
-    /**
-     * Colisión AABB simplificada: overlap horizontal + pájaro fuera del gap.
-     */
-    private boolean collides(Bird b, Pipe p) {
-        float bL = b.x - Bird.ANCHO * 0.5f;
-        float bR = b.x + Bird.ANCHO * 0.5f;
-        float bT = b.y + Bird.ALTO  * 0.5f;
-        float bB = b.y - Bird.ALTO  * 0.5f;
-
-        float pL = p.x - PIPE_W * 0.5f;
-        float pR = p.x + PIPE_W * 0.5f;
-        if (bR <= pL || bL >= pR) return false;
-
-        float gapTop = p.gapCenterY + GAP_H * 0.5f;
-        float gapBot = p.gapCenterY - GAP_H * 0.5f;
-        return bT > gapTop || bB < gapBot;
     }
 
     // =========================================================================
@@ -528,26 +532,29 @@ public class Game {
         GL20.glUseProgram(program);
         setAlpha(1.0f);
 
-        // M7-T6: dispatch por estado (REQ-07.10).
+        // Dispatch de renderizado por estado.
         switch (state) {
             case MAIN_MENU -> {
-                drawBackground(time);
+                drawBackground();
                 mainMenu.render();
             }
             case WAITING, PLAYING -> {
-                drawBackground(time);
+                drawBackground();
                 drawPipes();
                 player1.render(renderer, time);
-                if (twoPlayerMode) player2.render(renderer, time);
-                drawHUD(time);
-                if (state == GameState.WAITING) drawWaitingScreen();
+                if (twoPlayerMode)
+                    player2.render(renderer, time);
+                drawHUD();
+                if (state == GameState.WAITING)
+                    drawWaitingScreen();
             }
             case GAME_OVER -> {
-                drawBackground(time);
+                drawBackground();
                 drawPipes();
                 player1.render(renderer, time);
-                if (twoPlayerMode) player2.render(renderer, time);
-                drawHUD(time);
+                if (twoPlayerMode)
+                    player2.render(renderer, time);
+                drawHUD();
                 gameOverMenu.render(player1.score, player2.score,
                         player1.color, player2.color, twoPlayerMode);
             }
@@ -559,37 +566,10 @@ public class Game {
     // -------------------------------------------------------------------------
 
     /**
-     * Dibuja el degradado de cielo (dos grandes triángulos con colores distintos),
-     * nubes y suelo.
+     * Dibuja el fondo geométrico.
      */
-    private void drawBackground(float time) {
-        // Cielo superior (azul claro).
-        renderer.drawRect(0f,  0.5f, 2f, 1.0f, 0.40f, 0.65f, 0.90f);
-        // Cielo inferior (más cálido).
-        renderer.drawRect(0f, -0.2f, 2f, 0.6f, 0.55f, 0.78f, 0.95f);
-
-        // Nubes (parallax lento: se mueven con el tiempo).
-        float cloudSpeed = 0.03f;
-        for (float[] c : CLOUDS) {
-            float cx = (c[0] - (float)(time * cloudSpeed)) % 2.2f;
-            if (cx < -1.2f) cx += 2.4f;
-            drawCloud(cx, c[1]);
-        }
-
-        // Suelo verde oscuro.
-        float groundH = 1.0f - Math.abs(GROUND_TOP);
-        renderer.drawRect(0f, -1f + groundH * 0.5f, 2f, groundH,
-                0.15f, 0.52f, 0.18f);
-        // Franja de césped encima del suelo.
-        renderer.drawRect(0f, GROUND_TOP + 0.01f, 2f, 0.025f,
-                0.25f, 0.72f, 0.28f);
-    }
-
-    /** Dibuja una nube como conjunto de 3 rectángulos solapados. */
-    private void drawCloud(float cx, float cy) {
-        renderer.drawRect(cx,         cy,        0.18f, 0.06f, 0.95f, 0.97f, 1.0f);
-        renderer.drawRect(cx - 0.06f, cy + 0.02f, 0.10f, 0.05f, 0.95f, 0.97f, 1.0f);
-        renderer.drawRect(cx + 0.05f, cy + 0.03f, 0.09f, 0.04f, 0.95f, 0.97f, 1.0f);
+    private void drawBackground() {
+        background.render(renderer, (float) GLFW.glfwGetTime());
     }
 
     // -------------------------------------------------------------------------
@@ -607,8 +587,8 @@ public class Game {
                 float yCenSup = gapTop + hSup * 0.5f;
                 renderer.drawRect(p.x, yCenSup, PIPE_W, hSup, 0.15f, 0.60f, 0.20f);
                 // Capitel superior (borde más ancho en la punta del gap).
-                renderer.drawRect(p.x, gapTop - PIPE_CAP_H * 0.5f,
-                        PIPE_W + PIPE_CAP_EXTRA, PIPE_CAP_H, 0.18f, 0.70f, 0.22f);
+                renderer.drawRect(p.x, gapTop - Pipe.PIPE_CAP_H * 0.5f,
+                        PIPE_W + PIPE_CAP_EXTRA, Pipe.PIPE_CAP_H, 0.18f, 0.70f, 0.22f);
             }
 
             // Tramo inferior.
@@ -617,8 +597,8 @@ public class Game {
                 float yCenInf = GROUND_TOP + hInf * 0.5f;
                 renderer.drawRect(p.x, yCenInf, PIPE_W, hInf, 0.15f, 0.60f, 0.20f);
                 // Capitel inferior.
-                renderer.drawRect(p.x, gapBot + PIPE_CAP_H * 0.5f,
-                        PIPE_W + PIPE_CAP_EXTRA, PIPE_CAP_H, 0.18f, 0.70f, 0.22f);
+                renderer.drawRect(p.x, gapBot + Pipe.PIPE_CAP_H * 0.5f,
+                        PIPE_W + PIPE_CAP_EXTRA, Pipe.PIPE_CAP_H, 0.18f, 0.70f, 0.22f);
             }
         }
     }
@@ -627,14 +607,14 @@ public class Game {
     // HUD
     // -------------------------------------------------------------------------
 
-    private void drawHUD(float time) {
+    private void drawHUD() {
         // Marcador P1 (amarillo, lado izquierdo).
         textRenderer.drawNumber(player1.score, -0.95f, 0.87f, 1.8f,
                 player1.color[0], player1.color[1], player1.color[2]);
 
         // Marcador P2 (cian, lado derecho).
         String s2 = Integer.toString(player2.score);
-        float w2  = textRenderer.numberWidth(s2.length(), 1.8f);
+        float w2 = textRenderer.numberWidth(s2.length(), 1.8f);
         textRenderer.drawNumber(player2.score, 0.95f - w2, 0.87f, 1.8f,
                 player2.color[0], player2.color[1], player2.color[2]);
 
@@ -642,21 +622,24 @@ public class Game {
         drawLevelBar();
     }
 
-    /** Barra de progreso geométrica que indica el nivel de dificultad actual. */
+    /**
+     * Barra de progreso geométrica que indica el nivel de dificultad actual.
+     */
     private void drawLevelBar() {
-        float barX  = -0.90f;
-        float barY  = -0.93f;
-        float barW  = 0.30f;
-        float barH  = 0.018f;
-        int   level = currentLevel();
-        float fill  = level / 3.0f;
+        float barX = -0.90f;
+        float barY = -0.93f;
+        float barW = 0.30f;
+        float barH = 0.018f;
+        int level = currentLevel();
 
         // Marco vacío.
         renderer.drawRect(barX + barW * 0.5f, barY, barW, barH, 0.3f, 0.3f, 0.3f);
-        // Relleno proporcional al nivel.
-        if (fill > 0) {
-            renderer.drawRect(barX + barW * fill * 0.5f, barY,
-                    barW * fill, barH - 0.004f,
+
+        // Relleno dividido en segmentos equitativos
+        float segmentW = barW / MAX_LEVEL; // división equitativa (ancho / nivelesTotales)
+        for (int i = 0; i < level; i++) {
+            renderer.drawRect(barX + (i * segmentW) + (segmentW * 0.5f), barY,
+                    segmentW - 0.005f, barH - 0.004f,
                     0.98f, 0.70f, 0.10f);
         }
     }
@@ -665,7 +648,9 @@ public class Game {
     // Pantallas overlay
     // -------------------------------------------------------------------------
 
-    /** Pantalla de espera con instrucciones de controles. */
+    /**
+     * Pantalla de espera con instrucciones de controles.
+     */
     private void drawWaitingScreen() {
         setAlpha(0.55f);
         renderer.drawRect(0f, 0f, 2f, 2f, 0.05f, 0.08f, 0.15f);
@@ -687,14 +672,16 @@ public class Game {
     // Auxiliares
     // =========================================================================
 
-    /** Actualiza el título de la ventana con nivel y puntuaciones. */
+    /**
+     * Actualiza el título de la ventana con nivel y puntuaciones.
+     */
     private void updateTitle() {
         String title = switch (state) {
             case MAIN_MENU -> "Flappy Bird | 1=Un Jugador  2=Dos Jugadores";
-            case WAITING   -> twoPlayerMode
+            case WAITING -> twoPlayerMode
                     ? "Flappy Bird 2P | SPACE / W para empezar"
                     : "Flappy Bird 1P | SPACE para empezar";
-            case PLAYING   -> twoPlayerMode
+            case PLAYING -> twoPlayerMode
                     ? String.format("Nivel: %d | P1: %d | P2: %d",
                             currentLevel(), player1.score, player2.score)
                     : String.format("Nivel: %d | Score: %d",
@@ -708,7 +695,9 @@ public class Game {
         GLFW.glfwSetWindowTitle(window, title);
     }
 
-    /** Cambia el valor del uniform uAlpha del shader activo. */
+    /**
+     * Cambia el valor del uniform uAlpha del shader activo.
+     */
     private void setAlpha(float alpha) {
         GL20.glUniform1f(GL20.glGetUniformLocation(program, "uAlpha"), alpha);
     }
@@ -718,6 +707,7 @@ public class Game {
     // =========================================================================
 
     private void cleanup() {
+        background.cleanup();
         renderer.cleanup();
         GL20.glDeleteProgram(program);
         GLFW.glfwDestroyWindow(window);

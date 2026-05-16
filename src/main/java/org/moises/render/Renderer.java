@@ -9,7 +9,8 @@ import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
 /**
- * Renderer: abstracción sobre OpenGL que expone métodos de dibujo 2D primitivos.
+ * Renderer: abstracción sobre OpenGL que expone métodos de dibujo 2D
+ * primitivos.
  * <p>
  * Maneja internamente dos VAO/VBO: uno para el quad unitario (drawRect) y otro
  * para geometría dinámica (drawTriangle, drawCircle). El shader soporta offset,
@@ -27,11 +28,15 @@ public class Renderer {
     // -------------------------------------------------------------------------
     // VAO / VBO
     // -------------------------------------------------------------------------
-    /** VAO del quad unitario (-0.5 … +0.5), reutilizado para todos los rects. */
+    /**
+     * VAO del quad unitario (-0.5 … +0.5), reutilizado para todos los rects.
+     */
     private final int quadVao;
     private final int quadVbo;
 
-    /** VAO dinámico para triángulos y círculos. */
+    /**
+     * VAO dinámico para triángulos y círculos.
+     */
     private final int dynVao;
     private final int dynVbo;
 
@@ -46,17 +51,17 @@ public class Renderer {
      */
     public Renderer(int program) {
         this.program = program;
-        this.uModel  = GL20.glGetUniformLocation(program, "uModel");
-        this.uColor  = GL20.glGetUniformLocation(program, "uColor");
+        this.uModel = GL20.glGetUniformLocation(program, "uModel");
+        this.uColor = GL20.glGetUniformLocation(program, "uColor");
 
         // Crear quad base.
-        int[] quadIds = createStaticVao(new float[]{
+        int[] quadIds = createStaticVao(new float[] {
                 -0.5f, -0.5f, 0f,
-                 0.5f, -0.5f, 0f,
-                 0.5f,  0.5f, 0f,
+                0.5f, -0.5f, 0f,
+                0.5f, 0.5f, 0f,
                 -0.5f, -0.5f, 0f,
-                 0.5f,  0.5f, 0f,
-                -0.5f,  0.5f, 0f
+                0.5f, 0.5f, 0f,
+                -0.5f, 0.5f, 0f
         });
         quadVao = quadIds[0];
         quadVbo = quadIds[1];
@@ -76,8 +81,8 @@ public class Renderer {
     // Matriz de Transformación
     // -------------------------------------------------------------------------
 
-    private float[] cmat = {1,0,0, 0,1,0, 0,0,1};
-    private float[] stack = new float[64 * 9];
+    private final float[] cmat = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+    private final float[] stack = new float[64 * 9];
     private int stackPtr = 0;
 
     public void glPushMatrix() {
@@ -91,23 +96,25 @@ public class Renderer {
     }
 
     public void glTranslatef(float tx, float ty) {
-        cmat[6] += cmat[0]*tx + cmat[3]*ty;
-        cmat[7] += cmat[1]*tx + cmat[4]*ty;
+        cmat[6] += cmat[0] * tx + cmat[3] * ty;
+        cmat[7] += cmat[1] * tx + cmat[4] * ty;
     }
 
     public void glRotatef(float angle) {
-        float c = (float)Math.cos(angle);
-        float s = (float)Math.sin(angle);
+        float c = (float) Math.cos(angle);
+        float s = (float) Math.sin(angle);
         float m00 = cmat[0], m10 = cmat[1], m01 = cmat[3], m11 = cmat[4];
-        cmat[0] = m00*c + m01*s;
-        cmat[1] = m10*c + m11*s;
-        cmat[3] = m00*-s + m01*c;
-        cmat[4] = m10*-s + m11*c;
+        cmat[0] = m00 * c + m01 * s;
+        cmat[1] = m10 * c + m11 * s;
+        cmat[3] = m00 * -s + m01 * c;
+        cmat[4] = m10 * -s + m11 * c;
     }
 
     public void glScalef(float sx, float sy) {
-        cmat[0] *= sx; cmat[1] *= sx;
-        cmat[3] *= sy; cmat[4] *= sy;
+        cmat[0] *= sx;
+        cmat[1] *= sx;
+        cmat[3] *= sy;
+        cmat[4] *= sy;
     }
 
     // -------------------------------------------------------------------------
@@ -115,7 +122,7 @@ public class Renderer {
     // -------------------------------------------------------------------------
 
     public void drawRect(float cx, float cy, float w, float h,
-                         float angle, float r, float g, float b) {
+            float angle, float r, float g, float b) {
         glPushMatrix();
         glTranslatef(cx, cy);
         glRotatef(angle);
@@ -139,7 +146,7 @@ public class Renderer {
      * @see #drawRect(float, float, float, float, float, float, float, float)
      */
     public void drawRect(float cx, float cy, float w, float h,
-                         float r, float g, float b) {
+            float r, float g, float b) {
         drawRect(cx, cy, w, h, 0f, r, g, b);
     }
 
@@ -147,20 +154,20 @@ public class Renderer {
      * Dibuja un triángulo definido por tres vértices en NDC,
      * rotados {@code angle} radianes alrededor del centroide.
      *
-     * @param x1 vértice 1 X.
-     * @param y1 vértice 1 Y.
-     * @param x2 vértice 2 X.
-     * @param y2 vértice 2 Y.
-     * @param x3 vértice 3 X.
-     * @param y3 vértice 3 Y.
+     * @param x1    vértice 1 X.
+     * @param y1    vértice 1 Y.
+     * @param x2    vértice 2 X.
+     * @param y2    vértice 2 Y.
+     * @param x3    vértice 3 X.
+     * @param y3    vértice 3 Y.
      * @param angle rotación adicional en radianes.
      * @param r     rojo [0,1].
      * @param g     verde [0,1].
      * @param b     azul [0,1].
      */
     public void drawTriangle(float x1, float y1, float x2, float y2,
-                             float x3, float y3, float angle,
-                             float r, float g, float b) {
+            float x3, float y3, float angle,
+            float r, float g, float b) {
         float[] verts = {
                 x1, y1, 0f,
                 x2, y2, 0f,
@@ -185,14 +192,16 @@ public class Renderer {
      * @param b        azul [0,1].
      */
     public void drawCircle(float cx, float cy, float radius, int segments,
-                           float angle, float r, float g, float b) {
+            float angle, float r, float g, float b) {
         int count = segments + 2; // centro + periferia + cierre
         float[] verts = new float[count * 3];
         // Centro.
-        verts[0] = cx; verts[1] = cy; verts[2] = 0f;
+        verts[0] = cx;
+        verts[1] = cy;
+        verts[2] = 0f;
         for (int i = 0; i <= segments; i++) {
             double theta = 2.0 * Math.PI * i / segments;
-            verts[(i + 1) * 3]     = cx + radius * (float) Math.cos(theta);
+            verts[(i + 1) * 3] = cx + radius * (float) Math.cos(theta);
             verts[(i + 1) * 3 + 1] = cy + radius * (float) Math.sin(theta);
             verts[(i + 1) * 3 + 2] = 0f;
         }
@@ -241,7 +250,7 @@ public class Renderer {
      * porque los vértices ya están en coordenadas mundo).
      */
     private void uploadAndDraw(float[] verts, int mode, int count,
-                               float r, float g, float b) {
+            float r, float g, float b) {
         FloatBuffer buf = BufferUtils.createFloatBuffer(verts.length);
         buf.put(verts).flip();
 
@@ -253,7 +262,7 @@ public class Renderer {
         FloatBuffer fb = BufferUtils.createFloatBuffer(9);
         fb.put(cmat).flip();
         GL20.glUniformMatrix3fv(uModel, false, fb);
-        GL20.glUniform3f(uColor,   r,  g,  b);
+        GL20.glUniform3f(uColor, r, g, b);
 
         GL30.glBindVertexArray(dynVao);
         GL11.glDrawArrays(mode, 0, count);
@@ -278,6 +287,25 @@ public class Renderer {
         GL20.glEnableVertexAttribArray(0);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         GL30.glBindVertexArray(0);
-        return new int[]{vao, vbo};
+        return new int[] { vao, vbo };
+    }
+
+    public void drawExplosion(float cx, float cy, float w, float h) {
+        float radius = Math.min(w, h) * 0.25f;
+        drawCircle(cx, cy, radius, 18, 0f, 1.0f, 0.65f, 0.12f);
+
+        float inner = radius * 0.65f;
+        float outer = radius * 1.45f;
+        float spread = 0.35f;
+        for (int i = 0; i < 6; i++) {
+            float angle = (float) (i * Math.PI / 3.0);
+            float ax = cx + (float) Math.cos(angle) * outer;
+            float ay = cy + (float) Math.sin(angle) * outer;
+            float bx = cx + (float) Math.cos(angle - spread) * inner;
+            float by = cy + (float) Math.sin(angle - spread) * inner;
+            float cx2 = cx + (float) Math.cos(angle + spread) * inner;
+            float cy2 = cy + (float) Math.sin(angle + spread) * inner;
+            drawTriangle(ax, ay, bx, by, cx2, cy2, 0f, 1.0f, 0.55f, 0.05f);
+        }
     }
 }

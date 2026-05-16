@@ -10,14 +10,24 @@ import org.moises.core.InputManager;
  * la lógica de navegación de la clase {@link Game}.
  */
 public enum MenuAction {
-    /** Sin acción este frame. */
+    /**
+     * Sin acción este frame.
+     */
     NONE,
-    /** El usuario eligió modo 1 jugador. */
+    /**
+     * El usuario eligió modo 1 jugador.
+     */
     SELECT_1P,
-    /** El usuario eligió modo 2 jugadores. */
+    /**
+     * El usuario eligió modo 2 jugadores.
+     */
     SELECT_2P,
-    /** El usuario movió el cursor hacia arriba. */
+    /**
+     * El usuario movió el cursor hacia arriba.
+     */
     NAV_UP,
-    /** El usuario movió el cursor hacia abajo. */
+    /**
+     * El usuario movió el cursor hacia abajo.
+     */
     NAV_DOWN
 }

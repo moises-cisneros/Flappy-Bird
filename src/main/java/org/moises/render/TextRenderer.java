@@ -1,5 +1,11 @@
 package org.moises.render;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -10,11 +16,12 @@ import org.lwjgl.stb.STBTTAlignedQuad;
 import org.lwjgl.stb.STBTTBakedChar;
 import org.lwjgl.stb.STBTruetype;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-
+/**
+ * TextRenderer: renderiza texto y números usando la fuente Flappy Bird.
+ * <p>
+ * Emplea STB Truetype para hornear los glifos en una textura, y
+ * shaders personalizados para mapear los quads en coordenadas ortográficas.
+ */
 public class TextRenderer {
 
     private static final int BITMAP_W = 512;
@@ -29,15 +36,20 @@ public class TextRenderer {
     private int uProjection;
     private int uColor;
 
-    private float[] orthoMatrix;
+    private final float[] orthoMatrix;
 
+    /**
+     * Constructor del TextRenderer. Configura la proyección ortográfica.
+     *
+     * @param renderer instancia del Renderer activo.
+     */
     public TextRenderer(Renderer renderer) {
         initShader();
         initFont();
         initGL();
 
         orthoMatrix = new float[16];
-        ortho(0, 900, 700, 0, -1, 1, orthoMatrix);
+        ortho(orthoMatrix);
     }
 
     private void initShader() {
@@ -84,13 +96,18 @@ public class TextRenderer {
 
     private void initFont() {
         try {
-            InputStream is = TextRenderer.class.getResourceAsStream("/fonts/flappy.ttf");
-            if (is == null) throw new RuntimeException("Font not found");
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = is.read(buffer)) != -1) {
-                baos.write(buffer, 0, read);
+            ByteArrayOutputStream baos;
+            try (InputStream is = TextRenderer.class.getResourceAsStream("/fonts/flappy.ttf")) {
+                if (is == null) {
+                    System.err.println("[WARN] Font not found, text rendering disabled.");
+                    return;
+                }
+                baos = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    baos.write(buffer, 0, read);
+                }
             }
             byte[] fontData = baos.toByteArray();
             ByteBuffer ttf = BufferUtils.createByteBuffer(fontData.length);
@@ -103,14 +120,15 @@ public class TextRenderer {
 
             textureId = GL11.glGenTextures();
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
-            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RED, BITMAP_W, BITMAP_H, 0, GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, bitmap);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RED, BITMAP_W, BITMAP_H, 0, GL11.GL_RED,
+                    GL11.GL_UNSIGNED_BYTE, bitmap);
 
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-            
+
             GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("[WARN] Failed to init font: " + e.getMessage());
         }
     }
 
@@ -127,14 +145,38 @@ public class TextRenderer {
         GL30.glBindVertexArray(0);
     }
 
+    /**
+     * Dibuja un número entero en pantalla.
+     *
+     * @param value el número a dibujar
+     * @param ndcX  coordenada X (NDC)
+     * @param ndcY  coordenada Y (NDC)
+     * @param scale factor de escala
+     * @param r     componente rojo (0-1)
+     * @param g     componente verde (0-1)
+     * @param b     componente azul (0-1)
+     */
     public void drawNumber(int value, float ndcX, float ndcY, float scale, float r, float g, float b) {
         drawText(Integer.toString(value), ndcX, ndcY, scale, r, g, b);
     }
 
+    /**
+     * Dibuja una cadena de texto en pantalla.
+     *
+     * @param text  el texto a dibujar
+     * @param ndcX  coordenada X (NDC)
+     * @param ndcY  coordenada Y (NDC)
+     * @param scale factor de escala
+     * @param r     componente rojo (0-1)
+     * @param g     componente verde (0-1)
+     * @param b     componente azul (0-1)
+     */
     public void drawText(String text, float ndcX, float ndcY, float scale, float r, float g, float b) {
+        if (cdata == null)
+            return;
         float px = (ndcX + 1.0f) * 0.5f * 900f;
         float py = (1.0f - ndcY) * 0.5f * 700f;
-        float finalScale = scale * 0.55f; 
+        float finalScale = scale * 0.55f;
 
         GL20.glUseProgram(program);
         GL20.glUniform3f(uColor, r, g, b);
@@ -160,11 +202,12 @@ public class TextRenderer {
         float currentX = 0;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (c < 32 || c >= 128) continue;
+            if (c < 32 || c >= 128)
+                continue;
 
             xBuf.put(0, currentX);
             yBuf.put(0, 0);
-            
+
             STBTruetype.stbtt_GetBakedQuad(cdata, BITMAP_W, BITMAP_H, c - 32, xBuf, yBuf, q, true);
 
             float x0 = px + q.x0() * finalScale;
@@ -173,20 +216,20 @@ public class TextRenderer {
             float y1 = py + q.y1() * finalScale;
 
             float[] vertices = {
-                x0, y0, q.s0(), q.t0(),
-                x0, y1, q.s0(), q.t1(),
-                x1, y1, q.s1(), q.t1(),
+                    x0, y0, q.s0(), q.t0(),
+                    x0, y1, q.s0(), q.t1(),
+                    x1, y1, q.s1(), q.t1(),
 
-                x0, y0, q.s0(), q.t0(),
-                x1, y1, q.s1(), q.t1(),
-                x1, y0, q.s1(), q.t0()
+                    x0, y0, q.s0(), q.t0(),
+                    x1, y1, q.s1(), q.t1(),
+                    x1, y0, q.s1(), q.t0()
             };
 
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
             GL15.glBufferSubData(GL15.GL_ARRAY_BUFFER, 0, vertices);
 
             GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 6);
-            
+
             currentX = xBuf.get(0);
         }
 
@@ -194,10 +237,24 @@ public class TextRenderer {
         GL30.glBindVertexArray(0);
     }
 
+    /**
+     * Calcula el ancho aproximado que ocupará un número de ciertos dígitos.
+     *
+     * @param digits número de dígitos
+     * @param scale factor de escala
+     * @return ancho en NDC
+     */
     public float numberWidth(int digits, float scale) {
         return digits * 0.05f * scale;
     }
 
+    /**
+     * Mide el ancho exacto que ocupará un texto renderizado.
+     *
+     * @param text  texto a medir
+     * @param scale factor de escala
+     * @return ancho en NDC
+     */
     public float measureText(String text, float scale) {
         float finalScale = scale * 0.55f;
         FloatBuffer xBuf = BufferUtils.createFloatBuffer(1);
@@ -206,7 +263,8 @@ public class TextRenderer {
         float currentX = 0;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (c < 32 || c >= 128) continue;
+            if (c < 32 || c >= 128)
+                continue;
             xBuf.put(0, currentX);
             yBuf.put(0, 0);
             STBTruetype.stbtt_GetBakedQuad(cdata, BITMAP_W, BITMAP_H, c - 32, xBuf, yBuf, q, true);
@@ -216,7 +274,12 @@ public class TextRenderer {
         return (currentX * finalScale) / 450.0f;
     }
 
-    public void drawTextClamped(String text, float x, float y, float scale, float r, float g, float b, float xMin, float xMax, float scaleMin) {
+    /**
+     * Dibuja un texto asegurando que se adapte al espacio definido.
+     * Escala y ajusta el tamaño dinámicamente si excede los márgenes.
+     */
+    public void drawTextClamped(String text, float x, float y, float scale, float r, float g, float b, float xMin,
+            float xMax, float scaleMin) {
         float textWidth = measureText(text, scale);
         while (textWidth > (xMax - xMin) && scale > scaleMin) {
             scale -= 0.005f;
@@ -227,13 +290,13 @@ public class TextRenderer {
         drawText(text, drawX, y, scale, r, g, b);
     }
 
-    private void ortho(float left, float right, float bottom, float top, float zNear, float zFar, float[] dest) {
-        dest[0] = 2.0f / (right - left);
-        dest[5] = 2.0f / (top - bottom);
-        dest[10] = -2.0f / (zFar - zNear);
-        dest[12] = -(right + left) / (right - left);
-        dest[13] = -(top + bottom) / (top - bottom);
-        dest[14] = -(zFar + zNear) / (zFar - zNear);
+    private void ortho(float[] dest) {
+        dest[0] = 2.0f / ((float) 900 - (float) 0);
+        dest[5] = 2.0f / ((float) 0 - (float) 700);
+        dest[10] = -2.0f / ((float) 1 - (float) -1);
+        dest[12] = -((float) 900 + (float) 0) / ((float) 900 - (float) 0);
+        dest[13] = -((float) 0 + (float) 700) / ((float) 0 - (float) 700);
+        dest[14] = -((float) 1 + (float) -1) / ((float) 1 - (float) -1);
         dest[15] = 1.0f;
     }
 }

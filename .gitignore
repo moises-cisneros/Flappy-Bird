@@ -44,3 +44,16 @@ build/
 
 # File
 .antigravity/
+
+# Documentación
+docs/
+
+# Configuration files for IntelliJ plugins
+.idea/material_theme_project_new.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+.idea/workspace.xml
+
+# Files with user information
+.DS_Store
+Thumbs.db

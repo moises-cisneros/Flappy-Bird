@@ -65,7 +65,7 @@ mvn compile
 mvn exec:java
 
 # Opcional: compilar y empaquetar en un JAR independiente
-mvn package
+mvn package 
 java -jar target/FlappyBird-1.0-SNAPSHOT.jar
 
 ```
@@ -98,7 +98,8 @@ src/main/java/org/moises/
 │   └── Pipe.java               ← Estructura de tuberías y hitboxes AABB
 ├── render/
 │   ├── Renderer.java           ← Abstracción para drawRect, drawTriangle y transformaciones matriciales
-│   └── TextRenderer.java       ← Lógica de medición, escalado y dibujo dinámico de tipografía (STB TrueType)
+│   ├── BackgroundRenderer.java   ← Dibuja el fondo multicapa con primitivas y parallax
+│   └── TextRenderer.java       ← Lógica de medición, escalado y dibujo geométrico de tipografía
 ├── ui/
 │   ├── MainMenu.java           ← Dibujado y control de la pantalla de inicio
 │   ├── GameOverMenu.java       ← Dibujado de resultados y botones de reintento
@@ -114,6 +115,7 @@ src/main/java/org/moises/
 - **Motor Gráfico y Binding:** Construido sobre [LWJGL 3](https://www.lwjgl.org/) (Licencia BSD).
 - **Tipografía:** [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) por CodeMan38 (SIL Open Font License).
 - **Audio:** Efectos de sonido generados vía [jsfxr](https://sfxr.me) y/o biblioteca Kenney (CC0 Público).
+- **Texture:** Imagen de explosión obtenida del pack [Kenney Particle Pack](https://kenney.nl/assets/particle-pack), bajo licencia (CC0 Público).
 
 ## Licencia
 

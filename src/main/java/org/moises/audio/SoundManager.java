@@ -3,25 +3,31 @@ package org.moises.audio;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
 
+import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.sound.sampled.AudioInputStream;
 
 /**
- * SoundManager: carga y reproduce clips de audio WAV usando {@code javax.sound.sampled}.
+ * SoundManager: carga y reproduce clips de audio WAV usando
+ * {@code javax.sound.sampled}.
  * <p>
- * Los recursos se leen desde el classpath (Maven coloca {@code src/main/resources} en él).
- * Si un archivo no existe o falla al cargar, se degrada silenciosamente sin abortar el juego.
+ * Los recursos se leen desde el classpath (Maven coloca
+ * {@code src/main/resources} en él).
+ * Si un archivo no existe o falla al cargar, se degrada silenciosamente sin
+ * abortar el juego.
  * <p>
  * Uso típico:
+ *
  * <pre>
- *   Clip jump = SoundManager.loadClip("/sounds/jump.wav");
- *   SoundManager.play(jump);
+ * Clip jump = SoundManager.loadClip("/sounds/jump.wav");
+ * SoundManager.play(jump);
  * </pre>
  */
 public class SoundManager {
 
-    /** Instancia única (patrón singleton). */
+    /**
+     * Instancia única (patrón singleton).
+     */
     private static final SoundManager INSTANCE = new SoundManager();
 
     // -------------------------------------------------------------------------
@@ -31,7 +37,8 @@ public class SoundManager {
     private static final int JUMP_POOL_SIZE = 4;
     private final Clip[] clipJumpPool;
     private final Clip clipPoint;
-    private final Clip clipGameOver;
+    private static final int GO_POOL_SIZE = 2;
+    private final Clip[] clipGameOverPool;
 
     // -------------------------------------------------------------------------
     // Constructor privado
@@ -42,8 +49,11 @@ public class SoundManager {
         for (int i = 0; i < JUMP_POOL_SIZE; i++) {
             clipJumpPool[i] = loadClip("/sounds/jump.wav");
         }
-        clipPoint    = loadClip("/sounds/point.wav");
-        clipGameOver = loadClip("/sounds/gameover.wav");
+        clipPoint = loadClip("/sounds/point.wav");
+        clipGameOverPool = new Clip[GO_POOL_SIZE];
+        for (int i = 0; i < GO_POOL_SIZE; i++) {
+            clipGameOverPool[i] = loadClip("/sounds/gameover.wav");
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -76,7 +86,15 @@ public class SoundManager {
      * Reproduce el sonido de game over.
      */
     public static void playGameOver() {
-        play(INSTANCE.clipGameOver);
+        if (INSTANCE.clipGameOverPool == null) return;
+        for (int i = 0; i < GO_POOL_SIZE; i++) {
+            Clip c = INSTANCE.clipGameOverPool[i];
+            if (c != null && !c.isRunning()) {
+                c.setFramePosition(0);
+                c.start();
+                break;
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -86,7 +104,8 @@ public class SoundManager {
     /**
      * Carga un clip WAV desde el classpath.
      *
-     * @param classpathPath ruta con barra inicial (p. ej. {@code "/sounds/jump.wav"}).
+     * @param classpathPath ruta con barra inicial (p. ej.
+     *                      {@code "/sounds/jump.wav"}).
      * @return el {@link Clip} cargado, o {@code null} si no se pudo cargar.
      */
     public static Clip loadClip(String classpathPath) {

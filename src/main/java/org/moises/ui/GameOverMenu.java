@@ -4,7 +4,6 @@ import org.moises.core.GameState;
 import org.moises.render.Renderer;
 import org.moises.render.TextRenderer;
 
-
 /**
  * GameOverMenu: renderiza la pantalla de fin de partida mostrando los scores
  * finales, el ganador y las opciones "Retry" / "Menú Principal".
@@ -13,8 +12,8 @@ import org.moises.render.TextRenderer;
  * <p>
  * Opciones disponibles (M7-T4 / REQ-07.8 / REQ-07.9):
  * <ul>
- *   <li>R / SPACE → Retry (reinicia la partida en el mismo modo)</li>
- *   <li>M / ESC   → Menú Principal (vuelve a {@link GameState#MAIN_MENU})</li>
+ * <li>R / SPACE → Retry (reinicia la partida en el mismo modo)</li>
+ * <li>M / ESC → Menú Principal (vuelve a {@link GameState#MAIN_MENU})</li>
  * </ul>
  */
 public class GameOverMenu {
@@ -22,21 +21,20 @@ public class GameOverMenu {
     // -------------------------------------------------------------------------
     // Constantes de posición
     // -------------------------------------------------------------------------
-    private static final float PANEL_Y    =  0.00f;
-    private static final float PANEL_W    =  1.40f;
-    private static final float PANEL_H    =  0.75f;
+    private static final float PANEL_Y = 0.00f;
+    private static final float PANEL_W = 1.40f;
+    private static final float PANEL_H = 0.75f;
 
-    private static final float TITLE_Y    =  0.28f;
-    private static final float SCORE_Y    =  0.10f;
-    private static final float WINNER_Y   = -0.04f;
-    private static final float RETRY_Y    = -0.20f;
-    private static final float MENU_Y     = -0.32f;
-
+    private static final float TITLE_Y = 0.28f;
+    private static final float SCORE_Y = 0.10f;
+    private static final float WINNER_Y = -0.04f;
+    private static final float RETRY_Y = -0.20f;
+    private static final float MENU_Y = -0.32f;
 
     // -------------------------------------------------------------------------
     // Dependencias
     // -------------------------------------------------------------------------
-    private final Renderer     renderer;
+    private final Renderer renderer;
     private final TextRenderer text;
 
     // -------------------------------------------------------------------------
@@ -51,7 +49,7 @@ public class GameOverMenu {
      */
     public GameOverMenu(Renderer renderer, TextRenderer textRenderer) {
         this.renderer = renderer;
-        this.text     = textRenderer;
+        this.text = textRenderer;
     }
 
     // -------------------------------------------------------------------------
@@ -61,15 +59,15 @@ public class GameOverMenu {
     /**
      * Renderiza la pantalla de game over completa.
      *
-     * @param scoreP1      puntuación final del jugador 1.
-     * @param scoreP2      puntuación final del jugador 2.
-     * @param colorP1      color RGB del pájaro P1 (array de 3 floats [0,1]).
-     * @param colorP2      color RGB del pájaro P2 (array de 3 floats [0,1]).
+     * @param scoreP1       puntuación final del jugador 1.
+     * @param scoreP2       puntuación final del jugador 2.
+     * @param colorP1       color RGB del pájaro P1 (array de 3 floats [0,1]).
+     * @param colorP2       color RGB del pájaro P2 (array de 3 floats [0,1]).
      * @param twoPlayerMode {@code true} si se jugó en modo 2 jugadores.
      */
     public void render(int scoreP1, int scoreP2,
-                       float[] colorP1, float[] colorP2,
-                       boolean twoPlayerMode) {
+            float[] colorP1, float[] colorP2,
+            boolean twoPlayerMode) {
         // --- Overlay semitransparente ---
         renderer.setAlpha(0.70f);
         renderer.drawRect(0f, 0f, 2f, 2f, 0.08f, 0.02f, 0.06f);
@@ -87,7 +85,7 @@ public class GameOverMenu {
 
         // --- Scores finales ---
         if (twoPlayerMode) {
-            drawScores(scoreP1, scoreP2, colorP1, colorP2);
+            drawScores(scoreP1, scoreP2);
             drawWinnerIndicator(scoreP1, scoreP2, colorP1, colorP2);
         } else {
             // Modo 1 jugador: solo muestra el score de P1 centrado.
@@ -106,8 +104,7 @@ public class GameOverMenu {
     /**
      * Dibuja los marcadores finales de P1 y P2 lado a lado.
      */
-    private void drawScores(int scoreP1, int scoreP2,
-                             float[] c1, float[] c2) {
+    private void drawScores(int scoreP1, int scoreP2) {
         String s = "P1: " + scoreP1 + "  |  P2: " + scoreP2;
         text.drawTextClamped(s, 0f, SCORE_Y, 0.8f, 1f, 1f, 1f, -0.65f, 0.65f, 0.4f);
     }
