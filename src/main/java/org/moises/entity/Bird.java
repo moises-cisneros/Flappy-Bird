@@ -55,9 +55,14 @@ public final class Bird {
     private static final float WING_AMP = 0.025f;
 
     /**
-     * Puntos necesarios para que la gravedad se invierta.
+     * Flag para habilitar/deshabilitar la antigravedad en este pájaro.
      */
-    private static final int PTOS_GRAVEDAD_INVERTIDA = 1;
+    private boolean antiGravityEnabled = true;
+
+    /**
+     * Puntaje mínimo requerido para activar la inversión de gravedad.
+     */
+    private int antiGravityThreshold = 1;
 
     // -------------------------------------------------------------------------
     // Estado del pájaro
@@ -132,7 +137,7 @@ public final class Bird {
      */
     public void jump() {
         if (alive) {
-            velY = (score >= 15) ? -IMPULSO_SALTO : IMPULSO_SALTO;
+            velY = isAntiGravityActive() ? -IMPULSO_SALTO : IMPULSO_SALTO;
         }
     }
 
@@ -146,12 +151,13 @@ public final class Bird {
         if (!alive)
             return;
 
-        float currentGravity = (score >= PTOS_GRAVEDAD_INVERTIDA) ? -GRAVEDAD : GRAVEDAD;
-        float currentMaxFallSpeed = (score >= PTOS_GRAVEDAD_INVERTIDA) ? -VELOCIDAD_MAX_CAIDA : VELOCIDAD_MAX_CAIDA;
+        boolean invert = isAntiGravityActive();
+        float currentGravity = invert ? -GRAVEDAD : GRAVEDAD;
+        float currentMaxFallSpeed = invert ? -VELOCIDAD_MAX_CAIDA : VELOCIDAD_MAX_CAIDA;
 
         velY += currentGravity * dt;
 
-        if (score >= PTOS_GRAVEDAD_INVERTIDA) {
+        if (invert) {
             if (velY > currentMaxFallSpeed)
                 velY = currentMaxFallSpeed;
         } else {
@@ -183,6 +189,26 @@ public final class Bird {
         alive = true;
         timeDeath = 0;
         score = 0;
+    }
+
+    public boolean isAntiGravityEnabled() {
+        return antiGravityEnabled;
+    }
+
+    public int getAntiGravityThreshold() {
+        return antiGravityThreshold;
+    }
+
+    public void setAntiGravityEnabled(boolean enabled) {
+        this.antiGravityEnabled = enabled;
+    }
+
+    public void setAntiGravityThreshold(int threshold) {
+        this.antiGravityThreshold = Math.max(0, threshold);
+    }
+
+    private boolean isAntiGravityActive() {
+        return antiGravityEnabled && score >= antiGravityThreshold;
     }
 
     /**

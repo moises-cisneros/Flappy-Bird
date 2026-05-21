@@ -60,7 +60,25 @@ public class MainMenu {
 
     private static final float TITLE_Y = 0.30f;
     private static final float SUBTITLE_Y = 0.16f;
-    private static final float INSTRUCTION_Y = -0.38f;
+    private static final float INSTRUCTION_Y = -0.72f;
+
+    public static final float CONFIG_TOGGLE_Y = -0.46f;
+    public static final float CONFIG_THRESHOLD_Y = -0.58f;
+    public static final float CONFIG_ROW_W = 0.95f;
+    public static final float CONFIG_ROW_H = 0.08f;
+
+    public static final float CONFIG_LABEL_X_MIN = -0.85f;
+    public static final float CONFIG_LABEL_X_MAX = 0.05f;
+
+    public static final float TOGGLE_X = 0.38f;
+    public static final float TOGGLE_W = 0.22f;
+    public static final float TOGGLE_H = 0.07f;
+
+    public static final float THRESH_DEC_X = 0.24f;
+    public static final float THRESH_VAL_X = 0.38f;
+    public static final float THRESH_INC_X = 0.52f;
+    public static final float THRESH_BTN_W = 0.09f;
+    public static final float THRESH_BTN_H = 0.07f;
 
     // -------------------------------------------------------------------------
     // Estado
@@ -70,6 +88,11 @@ public class MainMenu {
      * Índice de la opción actualmente resaltada (0 = 1P, 1 = 2P).
      */
     private int selectedOption = OPT_1P;
+
+    private boolean antiGravityEnabled = true;
+    private int antiGravityThreshold = 1;
+    private static final int THRESHOLD_MIN = 1;
+    private static final int THRESHOLD_MAX = 50;
 
     private final Renderer renderer;
     private final TextRenderer text;
@@ -125,6 +148,34 @@ public class MainMenu {
         selectedOption = option;
     }
 
+    public boolean isAntiGravityEnabled() {
+        return antiGravityEnabled;
+    }
+
+    public int getAntiGravityThreshold() {
+        return antiGravityThreshold;
+    }
+
+    public void setAntiGravityEnabled(boolean enabled) {
+        this.antiGravityEnabled = enabled;
+    }
+
+    public void setAntiGravityThreshold(int threshold) {
+        antiGravityThreshold = clampThreshold(threshold);
+    }
+
+    public void toggleAntiGravity() {
+        antiGravityEnabled = !antiGravityEnabled;
+    }
+
+    public void incrementAntiGravityThreshold() {
+        antiGravityThreshold = clampThreshold(antiGravityThreshold + 1);
+    }
+
+    public void decrementAntiGravityThreshold() {
+        antiGravityThreshold = clampThreshold(antiGravityThreshold - 1);
+    }
+
     /**
      * Renderiza la pantalla completa del menú principal.
      * <p>
@@ -149,6 +200,8 @@ public class MainMenu {
 
         // --- Tarjeta opción 3 Jugadores ---
         drawOptionCard(OPT_3P_Y, OPT_3P, "[3] Tres Jugadores", 1.0f, 0.80f);
+
+        drawAntiGravityControls();
 
         // --- Instrucción inferior ---
         text.drawTextClamped("ENTER / numero para iniciar", 0f, INSTRUCTION_Y, 0.4f, 0.6f, 0.6f, 0.6f, -0.6f, 0.6f,
@@ -186,4 +239,37 @@ public class MainMenu {
                     0.012f, CARD_H * 0.6f, cr, (float) 0.85, cb);
         }
     }
+
+        private void drawAntiGravityControls() {
+        renderer.drawRect(0f, CONFIG_TOGGLE_Y, CONFIG_ROW_W, CONFIG_ROW_H, 0.10f, 0.12f, 0.18f);
+        renderer.drawRect(0f, CONFIG_THRESHOLD_Y, CONFIG_ROW_W, CONFIG_ROW_H, 0.10f, 0.12f, 0.18f);
+
+        text.drawTextClamped("Gravedad invertida", 0f, CONFIG_TOGGLE_Y - 0.018f, 0.55f,
+            0.9f, 0.9f, 0.9f, CONFIG_LABEL_X_MIN, CONFIG_LABEL_X_MAX, 0.35f);
+        text.drawTextClamped("Umbral (pts)", 0f, CONFIG_THRESHOLD_Y - 0.018f, 0.55f,
+            0.9f, 0.9f, 0.9f, CONFIG_LABEL_X_MIN, CONFIG_LABEL_X_MAX, 0.35f);
+
+        float toggleR = antiGravityEnabled ? 0.20f : 0.35f;
+        float toggleG = antiGravityEnabled ? 0.65f : 0.20f;
+        float toggleB = antiGravityEnabled ? 0.30f : 0.20f;
+        renderer.drawRect(TOGGLE_X, CONFIG_TOGGLE_Y, TOGGLE_W, TOGGLE_H, toggleR, toggleG, toggleB);
+        String toggleLabel = antiGravityEnabled ? "ON" : "OFF";
+        text.drawTextClamped(toggleLabel, TOGGLE_X, CONFIG_TOGGLE_Y - 0.018f, 0.6f,
+            1f, 1f, 1f, TOGGLE_X - TOGGLE_W * 0.45f, TOGGLE_X + TOGGLE_W * 0.45f, 0.35f);
+
+        renderer.drawRect(THRESH_DEC_X, CONFIG_THRESHOLD_Y, THRESH_BTN_W, THRESH_BTN_H, 0.25f, 0.25f, 0.30f);
+        renderer.drawRect(THRESH_INC_X, CONFIG_THRESHOLD_Y, THRESH_BTN_W, THRESH_BTN_H, 0.25f, 0.25f, 0.30f);
+        text.drawTextClamped("-", THRESH_DEC_X, CONFIG_THRESHOLD_Y - 0.018f, 0.8f,
+            1f, 1f, 1f, THRESH_DEC_X - THRESH_BTN_W * 0.45f, THRESH_DEC_X + THRESH_BTN_W * 0.45f, 0.4f);
+        text.drawTextClamped("+", THRESH_INC_X, CONFIG_THRESHOLD_Y - 0.018f, 0.8f,
+            1f, 1f, 1f, THRESH_INC_X - THRESH_BTN_W * 0.45f, THRESH_INC_X + THRESH_BTN_W * 0.45f, 0.4f);
+
+        String value = Integer.toString(antiGravityThreshold);
+        text.drawTextClamped(value, THRESH_VAL_X, CONFIG_THRESHOLD_Y - 0.018f, 0.65f,
+            1f, 1f, 1f, THRESH_VAL_X - 0.10f, THRESH_VAL_X + 0.10f, 0.35f);
+        }
+
+        private static int clampThreshold(int value) {
+        return Math.max(THRESHOLD_MIN, Math.min(THRESHOLD_MAX, value));
+        }
 }

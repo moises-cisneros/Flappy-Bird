@@ -93,6 +93,8 @@ public class Game {
     private Bird player3;
     private GameState state = GameState.MAIN_MENU;
     private int playerCount = 1;
+    private boolean antiGravityEnabled = true;
+    private int antiGravityThreshold = 1;
     private final List<Pipe> pipes = new ArrayList<>();
     private final Random rng = new Random();
     private float timerSpawn;
@@ -168,6 +170,9 @@ public class Game {
         player1 = new Bird("P1", -0.45f, 0.98f, 0.85f, 0.20f);
         player2 = new Bird("P2", -0.25f, 0.20f, 0.85f, 0.98f);
         player3 = new Bird("P3", -0.05f, 1.00f, 0.20f, 0.80f);
+
+        mainMenu.setAntiGravityEnabled(antiGravityEnabled);
+        mainMenu.setAntiGravityThreshold(antiGravityThreshold);
     }
 
     /**
@@ -213,8 +218,13 @@ public class Game {
      * Devuelve {@code true} si el punto NDC (nx, ny) está dentro del rect centrado.
      */
     private static boolean hitTest(float nx, float ny,
+            float cx, float cy, float w, float h) {
+        return Math.abs(nx - cx) <= w * 0.5f && Math.abs(ny - cy) <= h * 0.5f;
+    }
+
+    private static boolean hitTest(float nx, float ny,
             float cy, float w, float h) {
-        return Math.abs(nx - (float) 0.0) <= w * 0.5f && Math.abs(ny - cy) <= h * 0.5f;
+        return hitTest(nx, ny, 0.0f, cy, w, h);
     }
 
     // =========================================================================
@@ -301,6 +311,7 @@ public class Game {
      */
     private void startGame(int players) {
         this.playerCount = players;
+        applyAntiGravitySettings();
         player1.reset();
         player2.reset();
         player3.reset();
@@ -395,12 +406,25 @@ public class Game {
             // --- Soporte de ratón en menú principal ---
             if (mouseClicked) {
                 float[] ndc = screenToNdc(cursorX, cursorY);
-                if (hitTest(ndc[0], ndc[1], MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                if (hitTest(ndc[0], ndc[1], MainMenu.TOGGLE_X, MainMenu.CONFIG_TOGGLE_Y,
+                        MainMenu.TOGGLE_W, MainMenu.TOGGLE_H)) {
+                    mainMenu.toggleAntiGravity();
+                    antiGravityEnabled = mainMenu.isAntiGravityEnabled();
+                } else if (hitTest(ndc[0], ndc[1], MainMenu.THRESH_DEC_X, MainMenu.CONFIG_THRESHOLD_Y,
+                        MainMenu.THRESH_BTN_W, MainMenu.THRESH_BTN_H)) {
+                    mainMenu.decrementAntiGravityThreshold();
+                    antiGravityThreshold = mainMenu.getAntiGravityThreshold();
+                } else if (hitTest(ndc[0], ndc[1], MainMenu.THRESH_INC_X, MainMenu.CONFIG_THRESHOLD_Y,
+                        MainMenu.THRESH_BTN_W, MainMenu.THRESH_BTN_H)) {
+                    mainMenu.incrementAntiGravityThreshold();
+                    antiGravityThreshold = mainMenu.getAntiGravityThreshold();
+                } else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_1P_Y, MainMenu.CARD_W, MainMenu.CARD_H)) {
                     startGame(1);
-                else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                } else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_2P_Y, MainMenu.CARD_W, MainMenu.CARD_H)) {
                     startGame(2);
-                else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_3P_Y, MainMenu.CARD_W, MainMenu.CARD_H))
+                } else if (hitTest(ndc[0], ndc[1], MainMenu.OPT_3P_Y, MainMenu.CARD_W, MainMenu.CARD_H)) {
                     startGame(3);
+                }
                 mouseClicked = false;
             }
             return;
@@ -725,6 +749,15 @@ public class Game {
         }
         renderer.drawRect(0f, 0.00f, 1.2f, 0.006f, 0.5f, 0.5f, 0.6f);
         renderer.drawRect(0f, -0.10f, 1.0f, 0.006f, 0.5f, 0.5f, 0.6f);
+    }
+
+    private void applyAntiGravitySettings() {
+        player1.setAntiGravityEnabled(antiGravityEnabled);
+        player1.setAntiGravityThreshold(antiGravityThreshold);
+        player2.setAntiGravityEnabled(antiGravityEnabled);
+        player2.setAntiGravityThreshold(antiGravityThreshold);
+        player3.setAntiGravityEnabled(antiGravityEnabled);
+        player3.setAntiGravityThreshold(antiGravityThreshold);
     }
 
     // =========================================================================
